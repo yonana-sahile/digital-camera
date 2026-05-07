@@ -1,41 +1,138 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
 
-const CameraCapture = () => {
+// Define types for the API response if you have any
+interface UploadResponse {
+  message: string;
+  url?: string;
+}
+
+const CameraCapture: React.FC = () => {
   const webcamRef = useRef<Webcam>(null);
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // Use environment variable for the API URL or fallback to localhost
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/upload/';
+
+  const videoConstraints = {
+    width: 1280,
+    height: 720,
+    facingMode: "user" // Use "environment" for back camera on mobile
+  };
 
   const capture = useCallback(async () => {
-    // 1. Capture the image as a Base64 string
-    const imageSrc = webcamRef.current?.getScreenshot();
-
-    if (imageSrc) {
-      try {
-        // 2. Send the image to your Django Backend
-        const response = await axios.post('http://127.0.0.1:8000/api/upload/', {
-          image: imageSrc,
-        });
-        console.log("Upload Success:", response.data);
-        alert("Photo uploaded successfully!");
-      } catch (error) {
-        console.error("Upload Error:", error);
-      }
+    const image = webcamRef.current?.getScreenshot();
+    if (image) {
+      setImgSrc(image);
     }
   }, [webcamRef]);
 
+  const uploadPhoto = async () => {
+    if (!imgSrc) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.post<UploadResponse>(API_URL, {
+        image: imgSrc, // This is a Base64 string
+      });
+
+      console.log("Upload Success:", response.data);
+      alert("Photo uploaded successfully!");
+      setImgSrc(null); // Reset preview after success
+    } catch (error) {
+      console.error("Upload Error:", error);
+      alert("Failed to upload photo. Check CORS settings or Backend server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const retake = () => setImgSrc(null);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Webcam
-        audio={false}
-        ref={webcamRef}
-        screenshotFormat="image/jpeg"
-        width={480}
-      />
-      <button onClick={capture} style={{ marginTop: '10px' }}>
-        Capture Photo
-      </button>
+    <div style={containerStyle}>
+      <div style={webcamContainerStyle}>
+        {imgSrc ? (
+          <img src={imgSrc} alt="captured" style={previewStyle} />
+        ) : (
+          <Webcam
+            audio={false}
+            ref={webcamRef}
+            screenshotFormat="image/jpeg"
+            videoConstraints={videoConstraints}
+            style={previewStyle}
+          />
+        )}
+      </div>
+
+      <div style={buttonGroupStyle}>
+        {!imgSrc ? (
+          <button onClick={capture} style={captureButtonStyle}>
+            Capture Photo
+          </button>
+        ) : (
+          <>
+            <button onClick={uploadPhoto} disabled={loading} style={uploadButtonStyle}>
+              {loading ? "Uploading..." : "Upload Photo"}
+            </button>
+            <button onClick={retake} style={retakeButtonStyle}>
+              Retake
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
+};
+
+// --- Basic Inline Styles ---
+const containerStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  padding: '20px',
+  fontFamily: 'Arial, sans-serif'
+};
+
+const webcamContainerStyle: React.CSSProperties = {
+  border: '4px solid #333',
+  borderRadius: '8px',
+  overflow: 'hidden',
+  backgroundColor: '#000',
+  lineHeight: 0
+};
+
+const previewStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '500px',
+  height: 'auto'
+};
+
+const buttonGroupStyle: React.CSSProperties = {
+  marginTop: '20px',
+  display: 'flex',
+  gap: '10px'
+};
+
+const captureButtonStyle = {
+  padding: '10px 20px',
+  backgroundColor: '#007bff',
+  color: 'white',
+  border: 'none',
+  borderRadius: '5px',
+  cursor: 'pointer'
+};
+
+const uploadButtonStyle = {
+  ...captureButtonStyle,
+  backgroundColor: '#28a745'
+};
+
+const retakeButtonStyle = {
+  ...captureButtonStyle,
+  backgroundColor: '#dc3545'
 };
 
 export default CameraCapture;
