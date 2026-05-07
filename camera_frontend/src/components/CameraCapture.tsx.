@@ -1,0 +1,41 @@
+import React, { useRef, useCallback } from 'react';
+import Webcam from 'react-webcam';
+import axios from 'axios';
+
+const CameraCapture = () => {
+  const webcamRef = useRef<Webcam>(null);
+
+  const capture = useCallback(async () => {
+    // 1. Capture the image as a Base64 string
+    const imageSrc = webcamRef.current?.getScreenshot();
+
+    if (imageSrc) {
+      try {
+        // 2. Send the image to your Django Backend
+        const response = await axios.post('http://127.0.0.1:8000/api/upload/', {
+          image: imageSrc,
+        });
+        console.log("Upload Success:", response.data);
+        alert("Photo uploaded successfully!");
+      } catch (error) {
+        console.error("Upload Error:", error);
+      }
+    }
+  }, [webcamRef]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <Webcam
+        audio={false}
+        ref={webcamRef}
+        screenshotFormat="image/jpeg"
+        width={480}
+      />
+      <button onClick={capture} style={{ marginTop: '10px' }}>
+        Capture Photo
+      </button>
+    </div>
+  );
+};
+
+export default CameraCapture;
