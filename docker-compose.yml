@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # 1. The PostgreSQL Database Container
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=camera_db
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+    ports:
+      - "5432:5432"
+    # --- ADDED THIS: Tells Docker to ping the DB until it's ready ---
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d camera_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Your Django Backend
+  backend:
+    build:
+      context: ./backend/camera
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend/camera:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - DB_HOST=db
+      - DB_NAME=camera_db
+      - DB_USER=myuser
+      - DB_PASSWORD=mypassword
+    # --- UPDATED THIS: Wait for the DB to be HEALTHY, not just started ---
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # 3. Your React Frontend
+  frontend:
+    build:
+      context: ./camera_frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./camera_frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
