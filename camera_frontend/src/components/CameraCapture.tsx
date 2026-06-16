@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
 
@@ -7,15 +7,12 @@ interface UploadResponse {
   data?: any;
 }
 
-const App: React.FC = () => {
+const CameraCapture: React.FC = () => {
   const webcamRef = useRef<Webcam>(null);
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-
-  // Custom notification state to replace ugly alerts
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // FIXED: Pointing exactly to your Django router endpoint!
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
 
   const videoConstraints = {
@@ -26,33 +23,61 @@ const App: React.FC = () => {
 
   const showNotification = (text: string, type: 'success' | 'error' | 'info') => {
     setNotification({ text, type });
-    setTimeout(() => setNotification(null), 4000); // Auto-hide after 4 seconds
+    setTimeout(() => setNotification(null), 4000);
   };
 
-  const capture = useCallback(() => {
+  /**
+   * Flip a data URL image horizontally (mirror effect).
+   * Uses canvas to reverse the image.
+   */
+  const flipImageDataUrl = (dataUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        // Flip horizontally by scaling -1
+        ctx.translate(img.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg'));
+      };
+      img.onerror = (err) => reject(err);
+      img.src = dataUrl;
+    });
+  };
+
+  const capture = useCallback(async () => {
     const image = webcamRef.current?.getScreenshot();
     if (image) {
-      setImgSrc(image);
-      showNotification("Photo captured! Ready to upload.", "info");
+      try {
+        // Flip the captured image so it matches the natural orientation
+        const flippedImage = await flipImageDataUrl(image);
+        setImgSrc(flippedImage);
+        showNotification("Photo captured! Ready to upload.", "info");
+      } catch (error) {
+        console.error("Flip error:", error);
+        // Fallback: use the original (mirrored) image
+        setImgSrc(image);
+        showNotification("Photo captured (mirrored).", "info");
+      }
     }
   }, [webcamRef]);
 
   const uploadPhoto = async () => {
     if (!imgSrc) return;
-
     setLoading(true);
     try {
-      // Sending the exact payload your Django serializer expects
-      const response = await axios.post<UploadResponse>(API_URL, {
-        image: imgSrc,
-      });
-
+      const response = await axios.post<UploadResponse>(API_URL, { image: imgSrc });
       console.log("Upload Success:", response.data);
       showNotification("✓ Securely saved to database!", "success");
-
-      // Auto-reset back to live camera after a short delay
       setTimeout(() => setImgSrc(null), 2000);
-
     } catch (error) {
       console.error("Upload Error:", error);
       showNotification("✖ Failed to connect to server.", "error");
@@ -67,67 +92,79 @@ const App: React.FC = () => {
   };
 
   return (
-    <div style={styles.pageContainer}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>AdwaShield Smart Cam</h1>
-        <div style={styles.liveIndicator}>
-          <div style={styles.redDot}></div>
-          <span style={styles.liveText}>LIVE FEED</span>
-        </div>
-      </div>
+    <>
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.2); }
+          100% { opacity: 0.5; transform: scale(1); }
+        }
+      `}</style>
 
-      {/* Notification Banner */}
-      <div style={{
-        ...styles.notification,
-        opacity: notification ? 1 : 0,
-        backgroundColor: notification?.type === 'error' ? '#dc3545' : notification?.type === 'success' ? '#28a745' : '#17a2b8'
-      }}>
-        {notification?.text || " "}
-      </div>
-
-      <div style={styles.webcamWrapper}>
-        {/* Cool UI Overlay Frame */}
-        <div style={styles.cameraOverlay}>
-          <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '4px solid white', borderLeft: '4px solid white' }}></div>
-          <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '4px solid white', borderRight: '4px solid white' }}></div>
-          <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '4px solid white', borderLeft: '4px solid white' }}></div>
-          <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '4px solid white', borderRight: '4px solid white' }}></div>
-        </div>
-
-        {imgSrc ? (
-          <img src={imgSrc} alt="captured preview" style={styles.videoStream} />
-        ) : (
-          <Webcam
-            audio={false}
-            ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            videoConstraints={videoConstraints}
-            style={styles.videoStream}
-          />
-        )}
-      </div>
-
-      <div style={styles.controls}>
-        {!imgSrc ? (
-          <button onClick={capture} style={styles.captureBtn}>
-            <div style={styles.innerCaptureBtn}></div>
-          </button>
-        ) : (
-          <div style={styles.actionButtonGroup}>
-            <button onClick={retake} style={styles.secondaryBtn}>
-              ⟲ Retake
-            </button>
-            <button onClick={uploadPhoto} disabled={loading} style={styles.primaryBtn}>
-              {loading ? "Syncing..." : "⬆ Upload to Server"}
-            </button>
+      <div style={styles.pageContainer}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>AdwaShield Smart Cam</h1>
+          <div style={styles.liveIndicator}>
+            <div style={styles.redDot}></div>
+            <span style={styles.liveText}>LIVE FEED</span>
           </div>
-        )}
+        </div>
+
+        <div style={{
+          ...styles.notification,
+          opacity: notification ? 1 : 0,
+          backgroundColor: notification?.type === 'error' ? '#dc3545' : notification?.type === 'success' ? '#28a745' : '#17a2b8'
+        }}>
+          {notification?.text || " "}
+        </div>
+
+        <div style={styles.webcamWrapper}>
+          <div style={styles.cameraOverlay}>
+            <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '4px solid white', borderLeft: '4px solid white' }}></div>
+            <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '4px solid white', borderRight: '4px solid white' }}></div>
+            <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '4px solid white', borderLeft: '4px solid white' }}></div>
+            <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '4px solid white', borderRight: '4px solid white' }}></div>
+          </div>
+
+          {imgSrc ? (
+            // Captured image is already flipped, so no extra transform needed
+            <img src={imgSrc} alt="captured preview" style={styles.videoStream} />
+          ) : (
+            <Webcam
+              audio={false}
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              videoConstraints={videoConstraints}
+              style={{
+                ...styles.videoStream,
+                transform: 'scaleX(-1)' // Flip the live preview horizontally
+              }}
+            />
+          )}
+        </div>
+
+        <div style={styles.controls}>
+          {!imgSrc ? (
+            <button onClick={capture} style={styles.captureBtn}>
+              <div style={styles.innerCaptureBtn}></div>
+            </button>
+          ) : (
+            <div style={styles.actionButtonGroup}>
+              <button onClick={retake} style={styles.secondaryBtn}>
+                ⟲ Retake
+              </button>
+              <button onClick={uploadPhoto} disabled={loading} style={styles.primaryBtn}>
+                {loading ? "Syncing..." : "⬆ Upload to Server"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
-// --- Professional UI Styles ---
+// --- Styles (unchanged) ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
@@ -271,4 +308,4 @@ const styles: { [key: string]: React.CSSProperties } = {
   }
 };
 
-export default App;
+export default CameraCapture;
