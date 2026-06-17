@@ -1,9 +1,8 @@
-import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as faceapi from 'face-api.js';
-import { SelfieSegmentation } from '@mediapipe/selfie_segmentation';
 
 // --- Type definitions ---
 interface UploadResponse {
@@ -28,7 +27,6 @@ type FilterType =
 type CaptureMode = 'single' | 'timer' | 'burst';
 type StickerType = 'none' | 'sunglasses' | 'hat' | 'moustache' | 'dogears';
 
-// --- Sticker assets (simple emoji-based, but you can replace with PNG URLs) ---
 const stickerMap: Record<StickerType, string> = {
   none: '',
   sunglasses: '😎',
@@ -38,9 +36,9 @@ const stickerMap: Record<StickerType, string> = {
 };
 
 const CameraCapture: React.FC = () => {
-  // --- Existing state ---
+  // --- State ---
   const webcamRef = useRef<Webcam>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null); // overlay canvas
+  const canvasRef = useRef<HTMLCanvasElement>(null); // overlay for face detection and stickers
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -59,15 +57,12 @@ const CameraCapture: React.FC = () => {
   const [showHistogram, setShowHistogram] = useState<boolean>(false);
   const [histogramData, setHistogramData] = useState<number[]>([]);
 
-  // --- New Snapchat-style features ---
+  // --- Snapchat features ---
   const [faceDetection, setFaceDetection] = useState<boolean>(false);
   const [selectedSticker, setSelectedSticker] = useState<StickerType>('none');
   const [backgroundBlur, setBackgroundBlur] = useState<boolean>(false);
   const [modelsLoaded, setModelsLoaded] = useState<boolean>(false);
   const [faceDetections, setFaceDetections] = useState<faceapi.FaceDetection[]>([]);
-
-  // Refs for MediaPipe
-  const selfieSegmentationRef = useRef<SelfieSegmentation | null>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
 
@@ -77,7 +72,7 @@ const CameraCapture: React.FC = () => {
     facingMode: 'user',
   };
 
-  // --- Filter definitions (unchanged) ---
+  // --- Filters ---
   const filterStyles: Record<FilterType, string> = {
     none: 'none',
     grayscale: 'grayscale(100%)',
@@ -114,7 +109,7 @@ const CameraCapture: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // --- Auto‑enhance (unchanged) ---
+  // --- Auto‑enhance (histogram stretch + saturation) ---
   const applyAutoEnhance = (imageData: ImageData): ImageData => {
     const data = imageData.data;
     let minR = 255,
@@ -155,7 +150,7 @@ const CameraCapture: React.FC = () => {
     return imageData;
   };
 
-  // --- Capture with filter, watermark, stickers, background blur ---
+  // --- Capture with all effects ---
   const captureWithFilter = useCallback(async (): Promise<string | null> => {
     const video = webcamRef.current?.video;
     if (!video) return null;
@@ -170,19 +165,15 @@ const CameraCapture: React.FC = () => {
     // Draw video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // --- Background blur (apply on the canvas) ---
-    if (backgroundBlur && selfieSegmentationRef.current) {
-      // For simplicity, we'll use a static blur effect (since we can't run MediaPipe in a single frame easily).
-      // Instead, we'll apply a simple blur to the whole canvas and then paste the person back using segmentation mask.
-      // But that would require async processing. For a production version, use requestAnimationFrame loop.
-      // Here we'll skip because it's complex; we'll rely on the real-time overlay.
-      // However, we can apply a blur using canvas filter.
-      // But we'll implement a simpler static blur: just blur the whole image and then overlay the person from a separate capture.
-      // Given time, we'll just notify that background blur is only in real-time preview, not in saved image.
-      // Actually, we can capture the video frame, then run segmentation on it (but that's async).
-      // For this demo, we'll just apply a blur to the entire canvas (low quality) to simulate.
-      // We'll do a simple blur: draw image, apply filter: blur, then draw image again.
-      // This is a quick hack.
+    // Background blur (simple: blur the whole canvas, then overlay face region with original)
+    if (backgroundBlur) {
+      // Get face detection to keep the person sharp
+      let faceBox = null;
+      if (faceDetection && faceDetections.length > 0) {
+        const det = faceDetections[0];
+        faceBox = det.box;
+      }
+      // Blur the entire canvas
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
@@ -193,19 +184,36 @@ const CameraCapture: React.FC = () => {
         ctx.filter = 'blur(20px)';
         ctx.drawImage(tempCanvas, 0, 0);
         ctx.filter = 'none';
-        // In a real impl, you'd overlay the person from a segmentation mask.
-        // For now, we keep it as a blur effect.
+        // If we have a face box, overlay the unblurred face region
+        if (faceBox) {
+          const { x, y, width, height } = faceBox;
+          // Expand region a bit
+          const pad = 0.3;
+          const cx = x + width / 2;
+          const cy = y + height / 2;
+          const newW = width * (1 + pad);
+          const newH = height * (1 + pad);
+          const sx = cx - newW / 2;
+          const sy = cy - newH / 2;
+          // Clip to canvas bounds
+          const srcX = Math.max(0, sx);
+          const srcY = Math.max(0, sy);
+          const srcW = Math.min(canvas.width, sx + newW) - srcX;
+          const srcH = Math.min(canvas.height, sy + newH) - srcY;
+          // Draw the original (unblurred) region from tempCanvas
+          ctx.drawImage(tempCanvas, srcX, srcY, srcW, srcH, srcX, srcY, srcW, srcH);
+        }
       }
     }
 
-    // --- Auto-enhance ---
+    // Auto‑enhance
     if (autoEnhance) {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const enhanced = applyAutoEnhance(imageData);
       ctx.putImageData(enhanced, 0, 0);
     }
 
-    // --- Apply filter ---
+    // Apply filter
     if (activeFilter !== 'none') {
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvas.width;
@@ -220,9 +228,9 @@ const CameraCapture: React.FC = () => {
       }
     }
 
-    // --- Draw sticker (using detected face landmarks) ---
+    // Draw sticker using face detection
     if (selectedSticker !== 'none' && faceDetections.length > 0) {
-      const detection = faceDetections[0]; // use first face
+      const detection = faceDetections[0];
       const box = detection.box;
       const left = box.x,
         top = box.y,
@@ -241,7 +249,7 @@ const CameraCapture: React.FC = () => {
       ctx.shadowBlur = 0;
     }
 
-    // --- Watermark ---
+    // Watermark
     if (watermarkText.trim()) {
       ctx.font = 'bold 24px Inter, sans-serif';
       ctx.textAlign = 'right';
@@ -261,6 +269,7 @@ const CameraCapture: React.FC = () => {
     backgroundBlur,
     selectedSticker,
     faceDetections,
+    faceDetection,
   ]);
 
   // --- Single capture ---
@@ -277,7 +286,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [captureWithFilter]);
 
-  // --- Timer & Burst (async) ---
+  // --- Timer & Burst ---
   const startCaptureSequence = useCallback(async () => {
     if (isCapturing) return;
     setIsCapturing(true);
@@ -319,7 +328,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [mode, timerDelay, burstCount, performCapture, captureWithFilter, isCapturing]);
 
-  // --- Upload, Download, Share (unchanged) ---
+  // --- Upload, Download, Share ---
   const uploadPhoto = async () => {
     if (!imgSrc) return;
     setLoading(true);
@@ -375,7 +384,7 @@ const CameraCapture: React.FC = () => {
     setNotification(null);
   };
 
-  // --- Voice Commands (extended with sticker commands) ---
+  // --- Voice Commands ---
   useEffect(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       return;
@@ -413,7 +422,6 @@ const CameraCapture: React.FC = () => {
         setBackgroundBlur(!backgroundBlur);
         showNotification(`Background blur ${!backgroundBlur ? 'on' : 'off'}`, 'info');
       } else if (command.includes('sticker')) {
-        // Cycle stickers
         const stickers: StickerType[] = ['none', 'sunglasses', 'hat', 'moustache', 'dogears'];
         const currentIndex = stickers.indexOf(selectedSticker);
         const nextIndex = (currentIndex + 1) % stickers.length;
@@ -436,7 +444,7 @@ const CameraCapture: React.FC = () => {
     };
   }, [isListening, startCaptureSequence, imgSrc, isCapturing, selectedSticker, faceDetection, backgroundBlur]);
 
-  // --- Face‑API initialization ---
+  // --- Face‑API models ---
   useEffect(() => {
     const loadModels = async () => {
       const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/model/';
@@ -453,39 +461,7 @@ const CameraCapture: React.FC = () => {
     loadModels();
   }, []);
 
-  // --- MediaPipe SelfieSegmentation initialization ---
-  useEffect(() => {
-    const selfieSegmentation = new SelfieSegmentation({
-      locateFile: (file) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
-    });
-    selfieSegmentation.setOptions({
-      modelSelection: 0,
-    });
-    selfieSegmentation.onResults((results) => {
-      // We can use the results to draw segmentation mask on canvas
-      // For now, we'll just store the mask and apply it in the capture loop
-      // But we'll handle it in the real‑time drawing.
-    });
-    selfieSegmentationRef.current = selfieSegmentation;
-    // Start the loop
-    const runSegmentation = async () => {
-      const video = webcamRef.current?.video;
-      if (video && backgroundBlur) {
-        try {
-          await selfieSegmentation.send({ image: video });
-        } catch (e) {
-          console.warn('Segmentation error:', e);
-        }
-      }
-      requestAnimationFrame(runSegmentation);
-    };
-    if (backgroundBlur) {
-      runSegmentation();
-    }
-  }, [backgroundBlur]);
-
-  // --- Real‑time overlay drawing (face detection, stickers, segmentation) ---
+  // --- Real‑time overlay (face detection, stickers, grid) ---
   useEffect(() => {
     if (!webcamRef.current?.video || !canvasRef.current) return;
 
@@ -494,13 +470,14 @@ const CameraCapture: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    let animationId: number;
+
     const drawLoop = async () => {
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // --- Face detection ---
+      // Face detection
       if (faceDetection && modelsLoaded) {
         try {
           const detections = await faceapi.detectAllFaces(
@@ -522,7 +499,7 @@ const CameraCapture: React.FC = () => {
         }
       }
 
-      // --- Draw sticker (real‑time) ---
+      // Draw sticker (real‑time)
       if (selectedSticker !== 'none' && faceDetections.length > 0) {
         const detection = faceDetections[0];
         const box = detection.box;
@@ -543,14 +520,7 @@ const CameraCapture: React.FC = () => {
         ctx.shadowBlur = 0;
       }
 
-      // --- Background blur (real‑time) - actually we can apply CSS blur to the webcam itself? No, we need segmentation.
-      // Instead, we'll rely on the canvas to overlay segmentation mask, but that's complex.
-      // For now, we'll just apply a CSS blur to the video element and overlay the person.
-      // But since we already have a canvas overlay, we can draw the blurred video and then overlay the person.
-      // However, we'd need segmentation mask from MediaPipe.
-      // We'll skip this for the overlay and only apply in capture.
-
-      // --- Grid ---
+      // Grid
       if (showGrid) {
         ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.lineWidth = 1;
@@ -570,13 +540,17 @@ const CameraCapture: React.FC = () => {
         ctx.setLineDash([]);
       }
 
-      requestAnimationFrame(drawLoop);
+      animationId = requestAnimationFrame(drawLoop);
     };
 
     drawLoop();
+
+    return () => {
+      if (animationId) cancelAnimationFrame(animationId);
+    };
   }, [faceDetection, modelsLoaded, selectedSticker, faceDetections, showGrid]);
 
-  // --- Histogram update (unchanged) ---
+  // --- Histogram ---
   const updateHistogram = useCallback(() => {
     if (!showHistogram) return;
     const video = webcamRef.current?.video;
@@ -618,9 +592,6 @@ const CameraCapture: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [imgSrc, isCapturing, startCaptureSequence]);
-
-  // --- Helper: Grid overlay component ---
-  const GridOverlay = () => null; // we already draw it on canvas
 
   // --- Render ---
   return (
@@ -835,7 +806,7 @@ const CameraCapture: React.FC = () => {
             )}
           </motion.div>
 
-          {/* Extended Toolbar with new features */}
+          {/* Toolbar */}
           {!imgSrc && (
             <div style={styles.toolbar}>
               <div style={styles.toolGroup}>
@@ -929,7 +900,6 @@ const CameraCapture: React.FC = () => {
                 >
                   🌫️
                 </button>
-                {/* Sticker selector */}
                 <select
                   value={selectedSticker}
                   onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
@@ -1007,7 +977,7 @@ const CameraCapture: React.FC = () => {
   );
 };
 
-// --- Styles (updated with new buttons) ---
+// --- Styles (updated) ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
