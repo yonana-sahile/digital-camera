@@ -31,12 +31,13 @@ const CameraCapture: React.FC = () => {
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>('none');
   const [mode, setMode] = useState<CaptureMode>('single');
-  const [timerDelay, setTimerDelay] = useState<number>(3); // seconds
+  const [timerDelay, setTimerDelay] = useState<number>(3);
   const [burstCount, setBurstCount] = useState<number>(3);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const [showGrid, setShowGrid] = useState<boolean>(false);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
 
@@ -59,7 +60,22 @@ const CameraCapture: React.FC = () => {
     cool: 'brightness(1.05) saturate(0.8) hue-rotate(15deg)',
     vivid: 'saturate(1.8) contrast(1.1)',
     dramatic: 'contrast(1.5) saturate(0.9) brightness(0.9)',
-    vignette: 'brightness(1.1) contrast(1.2) drop-shadow(0 0 100px rgba(0,0,0,0.5))', // not perfect but okay
+    vignette: 'brightness(1.1) contrast(1.2) drop-shadow(0 0 100px rgba(0,0,0,0.5))',
+  };
+
+  const filterLabels: Record<FilterType, string> = {
+    none: 'Normal',
+    grayscale: 'B&W',
+    sepia: 'Sepia',
+    invert: 'Invert',
+    blur: 'Blur',
+    vintage: 'Vintage',
+    'hue-rotate': 'Hue',
+    warm: 'Warm',
+    cool: 'Cool',
+    vivid: 'Vivid',
+    dramatic: 'Dramatic',
+    vignette: 'Vignette',
   };
 
   // --- Notifications ---
@@ -68,7 +84,7 @@ const CameraCapture: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // --- Capture with filter (canvas) ---
+  // --- Capture with filter ---
   const captureWithFilter = (): string | null => {
     const video = webcamRef.current?.video;
     if (!video) return null;
@@ -102,7 +118,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [webcamRef, activeFilter]);
 
-  // --- Timer & Burst logic ---
+  // --- Timer & Burst ---
   const startCaptureSequence = useCallback(async () => {
     if (isCapturing) return;
     setIsCapturing(true);
@@ -133,10 +149,10 @@ const CameraCapture: React.FC = () => {
           images.push(img);
           showNotification(`Burst ${i + 1}/${burstCount}`, 'info');
         }
-        await new Promise((r) => setTimeout(r, 400)); // 400ms between shots
+        await new Promise((r) => setTimeout(r, 400));
       }
       if (images.length > 0) {
-        setImgSrc(images[0]); // show first as preview
+        setImgSrc(images[0]);
         setCapturedImages(images);
         showNotification(`Captured ${images.length} burst shots!`, 'success');
       }
@@ -175,7 +191,7 @@ const CameraCapture: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // --- Share (Web Share API) ---
+  // --- Share ---
   const shareImage = async () => {
     if (!imgSrc) return;
     try {
@@ -188,7 +204,7 @@ const CameraCapture: React.FC = () => {
           files: [file],
         });
       } else {
-        showNotification('Share not supported on this browser.', 'info');
+        showNotification('Share not supported.', 'info');
       }
     } catch (error) {
       console.error('Share error:', error);
@@ -221,10 +237,10 @@ const CameraCapture: React.FC = () => {
   // --- Grid overlay ---
   const GridOverlay = () => (
     <div style={styles.gridOverlay}>
-      <div style={styles.gridLineH} />
-      <div style={styles.gridLineH} />
-      <div style={styles.gridLineV} />
-      <div style={styles.gridLineV} />
+      <div style={{ ...styles.gridLine, top: '33.33%' }} />
+      <div style={{ ...styles.gridLine, top: '66.66%' }} />
+      <div style={{ ...styles.gridLine, left: '33.33%', width: '1px', height: '100%' }} />
+      <div style={{ ...styles.gridLine, left: '66.66%', width: '1px', height: '100%' }} />
     </div>
   );
 
@@ -236,14 +252,13 @@ const CameraCapture: React.FC = () => {
           background: rgba(255,255,255,0.05);
           border: 2px solid transparent;
           border-radius: 12px;
-          padding: 6px 12px;
+          padding: 8px 12px;
           cursor: pointer;
           display: flex;
-          flex-direction: column;
           align-items: center;
-          gap: 4px;
+          gap: 12px;
           transition: all 0.2s ease;
-          min-width: 60px;
+          width: 100%;
         }
         .filter-btn.active {
           border-color: #f5576c;
@@ -290,219 +305,247 @@ const CameraCapture: React.FC = () => {
         </div>
       </div>
 
-      {/* Camera Preview */}
-      <motion.div
-        style={styles.webcamWrapper}
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div style={styles.cameraOverlay}>
-          <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
-          <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
-          <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
-          <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
-          {showGrid && !imgSrc && <GridOverlay />}
-          {countdown !== null && (
-            <div style={styles.countdownOverlay}>
-              <span style={styles.countdownNumber}>{countdown}</span>
-            </div>
-          )}
-        </div>
-
-        {imgSrc ? (
-          <motion.img
-            src={imgSrc}
-            alt="captured"
-            style={styles.videoStream}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-          />
-        ) : (
-          <Webcam
-            audio={false}
-            ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            videoConstraints={videoConstraints}
-            style={{
-              ...styles.videoStream,
-              transform: 'scaleX(-1)',
-              filter: filterStyles[activeFilter],
-            }}
-          />
-        )}
-      </motion.div>
-
-      {/* Toolbar (mode, grid, etc.) */}
-      {!imgSrc && (
-        <div style={styles.toolbar}>
-          <div style={styles.toolGroup}>
-            <button
-              className={`mode-btn ${mode === 'single' ? 'active' : ''}`}
-              style={styles.toolBtn}
-              onClick={() => setMode('single')}
-              title="Single shot"
-            >
-              📸
-            </button>
-            <button
-              className={`mode-btn ${mode === 'timer' ? 'active' : ''}`}
-              style={styles.toolBtn}
-              onClick={() => setMode('timer')}
-              title="Timer"
-            >
-              ⏱️
-            </button>
-            <button
-              className={`mode-btn ${mode === 'burst' ? 'active' : ''}`}
-              style={styles.toolBtn}
-              onClick={() => setMode('burst')}
-              title="Burst"
-            >
-              🔫
-            </button>
-          </div>
-          <div style={styles.toolGroup}>
-            {mode === 'timer' && (
-              <select
-                value={timerDelay}
-                onChange={(e) => setTimerDelay(Number(e.target.value))}
-                style={styles.select}
-              >
-                <option value={3}>3s</option>
-                <option value={5}>5s</option>
-                <option value={10}>10s</option>
-              </select>
-            )}
-            {mode === 'burst' && (
-              <select
-                value={burstCount}
-                onChange={(e) => setBurstCount(Number(e.target.value))}
-                style={styles.select}
-              >
-                <option value={3}>3 shots</option>
-                <option value={5}>5 shots</option>
-                <option value={10}>10 shots</option>
-              </select>
-            )}
-            <button
-              style={{ ...styles.toolBtn, backgroundColor: showGrid ? 'rgba(245,87,108,0.2)' : 'transparent' }}
-              onClick={() => setShowGrid(!showGrid)}
-              title="Toggle Grid"
-            >
-              ⊞
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Filter Bar */}
-      {!imgSrc && (
-        <motion.div
-          style={styles.filterBar}
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
+      {/* Main container with sidebar and camera */}
+      <div style={styles.mainContainer}>
+        {/* Filter Toggle Button (left side) */}
+        <button
+          style={styles.filterToggle}
+          onClick={() => setShowFilters(!showFilters)}
+          title="Toggle Filters"
         >
-          {([
-            'none',
-            'grayscale',
-            'sepia',
-            'invert',
-            'blur',
-            'vintage',
-            'hue-rotate',
-            'warm',
-            'cool',
-            'vivid',
-            'dramatic',
-            'vignette',
-          ] as FilterType[]).map((filter) => (
-            <button
-              key={filter}
-              className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
-              style={styles.filterBtn}
-              onClick={() => setActiveFilter(filter)}
+          🎨
+        </button>
+
+        {/* Filter Sidebar */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              style={styles.filterSidebar}
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
-              <span style={styles.filterLabel}>{filter.replace('-', ' ').toUpperCase()}</span>
-              <div
+              <div style={styles.sidebarHeader}>
+                <span>Filters</span>
+                <button onClick={() => setShowFilters(false)} style={styles.closeSidebar}>✕</button>
+              </div>
+              <div style={styles.filterList}>
+                {([
+                  'none',
+                  'grayscale',
+                  'sepia',
+                  'invert',
+                  'blur',
+                  'vintage',
+                  'hue-rotate',
+                  'warm',
+                  'cool',
+                  'vivid',
+                  'dramatic',
+                  'vignette',
+                ] as FilterType[]).map((filter) => (
+                  <button
+                    key={filter}
+                    className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveFilter(filter);
+                      setShowFilters(false); // close after selection
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        backgroundImage: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                        filter: filterStyles[filter],
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={styles.filterLabel}>{filterLabels[filter]}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Camera and controls */}
+        <div style={styles.cameraSection}>
+          {/* Camera Preview */}
+          <motion.div
+            style={styles.webcamWrapper}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div style={styles.cameraOverlay}>
+              <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
+              <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+              <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
+              <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+              {showGrid && !imgSrc && <GridOverlay />}
+              {countdown !== null && (
+                <div style={styles.countdownOverlay}>
+                  <span style={styles.countdownNumber}>{countdown}</span>
+                </div>
+              )}
+            </div>
+
+            {imgSrc ? (
+              <motion.img
+                src={imgSrc}
+                alt="captured"
+                style={styles.videoStream}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              />
+            ) : (
+              <Webcam
+                audio={false}
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                videoConstraints={videoConstraints}
                 style={{
-                  ...styles.filterPreview,
-                  filter: filterStyles[filter],
-                  backgroundImage: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                  ...styles.videoStream,
+                  transform: 'scaleX(-1)',
+                  filter: filterStyles[activeFilter],
                 }}
               />
-            </button>
-          ))}
-        </motion.div>
-      )}
-
-      {/* Controls */}
-      <div style={styles.controls}>
-        {!imgSrc ? (
-          <motion.button
-            onClick={startCaptureSequence}
-            disabled={isCapturing}
-            style={styles.captureBtn}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <div style={styles.innerCaptureBtn} />
-          </motion.button>
-        ) : (
-          <motion.div
-            style={styles.actionButtonGroup}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <button onClick={retake} style={styles.secondaryBtn}>
-              ⟲ Retake
-            </button>
-            <button onClick={downloadImage} style={styles.secondaryBtn}>
-              ⬇ Download
-            </button>
-            {navigator.share && (
-              <button onClick={shareImage} style={styles.secondaryBtn}>
-                📤 Share
-              </button>
             )}
-            <motion.button
-              onClick={uploadPhoto}
-              disabled={loading}
-              style={styles.primaryBtn}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              {loading ? 'Syncing...' : '⬆ Upload'}
-            </motion.button>
           </motion.div>
-        )}
-      </div>
 
-      {/* Burst previews (if multiple) */}
-      {capturedImages.length > 1 && (
-        <div style={styles.burstPreviews}>
-          {capturedImages.map((img, idx) => (
-            <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />
-          ))}
+          {/* Toolbar (modes, grid, etc.) */}
+          {!imgSrc && (
+            <div style={styles.toolbar}>
+              <div style={styles.toolGroup}>
+                <button
+                  className={`mode-btn ${mode === 'single' ? 'active' : ''}`}
+                  style={styles.toolBtn}
+                  onClick={() => setMode('single')}
+                  title="Single shot"
+                >
+                  📸
+                </button>
+                <button
+                  className={`mode-btn ${mode === 'timer' ? 'active' : ''}`}
+                  style={styles.toolBtn}
+                  onClick={() => setMode('timer')}
+                  title="Timer"
+                >
+                  ⏱️
+                </button>
+                <button
+                  className={`mode-btn ${mode === 'burst' ? 'active' : ''}`}
+                  style={styles.toolBtn}
+                  onClick={() => setMode('burst')}
+                  title="Burst"
+                >
+                  🔫
+                </button>
+              </div>
+              <div style={styles.toolGroup}>
+                {mode === 'timer' && (
+                  <select
+                    value={timerDelay}
+                    onChange={(e) => setTimerDelay(Number(e.target.value))}
+                    style={styles.select}
+                  >
+                    <option value={3}>3s</option>
+                    <option value={5}>5s</option>
+                    <option value={10}>10s</option>
+                  </select>
+                )}
+                {mode === 'burst' && (
+                  <select
+                    value={burstCount}
+                    onChange={(e) => setBurstCount(Number(e.target.value))}
+                    style={styles.select}
+                  >
+                    <option value={3}>3 shots</option>
+                    <option value={5}>5 shots</option>
+                    <option value={10}>10 shots</option>
+                  </select>
+                )}
+                <button
+                  style={{ ...styles.toolBtn, backgroundColor: showGrid ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+                  onClick={() => setShowGrid(!showGrid)}
+                  title="Toggle Grid"
+                >
+                  ⊞
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Controls */}
+          <div style={styles.controls}>
+            {!imgSrc ? (
+              <motion.button
+                onClick={startCaptureSequence}
+                disabled={isCapturing}
+                style={styles.captureBtn}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div style={styles.innerCaptureBtn} />
+              </motion.button>
+            ) : (
+              <motion.div
+                style={styles.actionButtonGroup}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <button onClick={retake} style={styles.secondaryBtn}>
+                  ⟲ Retake
+                </button>
+                <button onClick={downloadImage} style={styles.secondaryBtn}>
+                  ⬇ Download
+                </button>
+                {navigator.share && (
+                  <button onClick={shareImage} style={styles.secondaryBtn}>
+                    📤 Share
+                  </button>
+                )}
+                <motion.button
+                  onClick={uploadPhoto}
+                  disabled={loading}
+                  style={styles.primaryBtn}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  {loading ? 'Syncing...' : '⬆ Upload'}
+                </motion.button>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Burst thumbnails */}
+          {capturedImages.length > 1 && (
+            <div style={styles.burstPreviews}>
+              {capturedImages.map((img, idx) => (
+                <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />
+              ))}
+            </div>
+          )}
+
+          {/* Keyboard hint */}
+          <div style={styles.keyHint}>
+            <span>Space: Capture &nbsp;|&nbsp; R: Retake</span>
+          </div>
         </div>
-      )}
-
-      {/* Keyboard hint */}
-      <div style={styles.keyHint}>
-        <span>Space: Capture &nbsp;|&nbsp; R: Retake</span>
       </div>
     </div>
   );
 };
 
-// --- Styles (extensive) ---
+// --- Updated styles with sidebar support ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
     minHeight: '100vh',
     background: 'linear-gradient(145deg, #0b0b0b 0%, #1a1a1a 100%)',
     fontFamily: '"Inter", -apple-system, sans-serif',
@@ -510,7 +553,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative',
   },
   notification: {
-    position: 'absolute',
+    position: 'fixed',
     top: '20px',
     left: '50%',
     transform: 'translateX(-50%)',
@@ -520,7 +563,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
     fontSize: '14px',
     boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
-    zIndex: 100,
+    zIndex: 1000,
     maxWidth: '90%',
     textAlign: 'center',
   },
@@ -532,6 +575,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     maxWidth: '800px',
     marginBottom: '15px',
     padding: '0 10px',
+    zIndex: 5,
   },
   title: {
     fontSize: '26px',
@@ -565,10 +609,80 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '12px',
     letterSpacing: '1px',
   },
-  webcamWrapper: {
+  mainContainer: {
     position: 'relative',
     width: '100%',
     maxWidth: '800px',
+    display: 'flex',
+    alignItems: 'flex-start',
+  },
+  filterToggle: {
+    position: 'absolute',
+    left: '-60px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: '30px',
+    padding: '12px 8px',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: 'white',
+    transition: 'all 0.2s',
+    zIndex: 20,
+  },
+  filterSidebar: {
+    position: 'absolute',
+    left: '-20px',
+    top: '0',
+    width: '260px',
+    height: '100%',
+    background: 'rgba(20,20,20,0.9)',
+    backdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '20px',
+    padding: '20px 16px',
+    overflowY: 'auto',
+    zIndex: 30,
+    boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+  },
+  sidebarHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px',
+    color: 'white',
+    fontWeight: '600',
+    fontSize: '18px',
+  },
+  closeSidebar: {
+    background: 'none',
+    border: 'none',
+    color: '#aaa',
+    fontSize: '20px',
+    cursor: 'pointer',
+  },
+  filterList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  filterLabel: {
+    color: '#eee',
+    fontSize: '14px',
+    fontWeight: '500',
+  },
+  cameraSection: {
+    flex: 1,
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  webcamWrapper: {
+    position: 'relative',
+    width: '100%',
     aspectRatio: '16/9',
     backgroundColor: '#1a1a1a',
     borderRadius: '20px',
@@ -604,23 +718,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     height: '100%',
     zIndex: 5,
   },
-  gridLineH: {
+  gridLine: {
     position: 'absolute',
-    left: '0%',
+    left: 0,
     width: '100%',
     height: '1px',
     background: 'rgba(255,255,255,0.15)',
-    top: '33.33%',
     borderTop: '1px dashed rgba(255,255,255,0.2)',
-  },
-  gridLineV: {
-    position: 'absolute',
-    top: '0%',
-    height: '100%',
-    width: '1px',
-    background: 'rgba(255,255,255,0.15)',
-    left: '33.33%',
-    borderLeft: '1px dashed rgba(255,255,255,0.2)',
   },
   countdownOverlay: {
     position: 'absolute',
@@ -645,7 +749,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    maxWidth: '800px',
     marginTop: '15px',
     padding: '8px 16px',
     background: 'rgba(255,255,255,0.04)',
@@ -678,46 +781,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: 'white',
     fontSize: '14px',
     cursor: 'pointer',
-  },
-  filterBar: {
-    display: 'flex',
-    gap: '12px',
-    marginTop: '15px',
-    padding: '10px 20px',
-    background: 'rgba(255,255,255,0.05)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '20px',
-    border: '1px solid rgba(255,255,255,0.08)',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    maxWidth: '800px',
-    width: '100%',
-  },
-  filterBtn: {
-    background: 'rgba(255,255,255,0.05)',
-    border: '2px solid transparent',
-    borderRadius: '12px',
-    padding: '6px 12px',
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '4px',
-    transition: 'all 0.2s ease',
-    minWidth: '60px',
-  },
-  filterLabel: {
-    fontSize: '9px',
-    fontWeight: '700',
-    color: '#aaa',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  filterPreview: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '8px',
-    transition: 'filter 0.2s',
   },
   controls: {
     marginTop: '25px',
