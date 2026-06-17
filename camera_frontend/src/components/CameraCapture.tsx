@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useState } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UploadResponse {
   message: string;
@@ -31,7 +32,6 @@ const CameraCapture: React.FC = () => {
     facingMode: 'user',
   };
 
-  // Map filter names to CSS filter strings (also usable on Canvas)
   const filterStyles: Record<FilterType, string> = {
     none: 'none',
     grayscale: 'grayscale(100%)',
@@ -47,32 +47,22 @@ const CameraCapture: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  /**
-   * Capture a frame with the currently selected filter applied.
-   * If filter is 'none', use the Webcam screenshot (faster).
-   * Otherwise, draw the video to a canvas with the filter and export.
-   */
   const captureWithFilter = (): string | null => {
     const video = webcamRef.current?.video;
     if (!video) return null;
 
-    // If no filter, use the built‑in screenshot (fastest)
     if (activeFilter === 'none') {
       return webcamRef.current?.getScreenshot() || null;
     }
 
-    // Apply filter via Canvas
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
-    // Apply the same filter string to the canvas context
     ctx.filter = filterStyles[activeFilter];
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
     return canvas.toDataURL('image/jpeg');
   };
 
@@ -80,9 +70,9 @@ const CameraCapture: React.FC = () => {
     const image = captureWithFilter();
     if (image) {
       setImgSrc(image);
-      showNotification('Photo captured with filter!', 'info');
+      showNotification('Photo captured!', 'info');
     } else {
-      showNotification('Failed to capture. Please check camera.', 'error');
+      showNotification('Failed to capture.', 'error');
     }
   }, [webcamRef, activeFilter]);
 
@@ -92,11 +82,11 @@ const CameraCapture: React.FC = () => {
     try {
       const response = await axios.post<UploadResponse>(API_URL, { image: imgSrc });
       console.log('Upload Success:', response.data);
-      showNotification('✓ Securely saved to database!', 'success');
+      showNotification('✓ Saved to database!', 'success');
       setTimeout(() => setImgSrc(null), 2000);
     } catch (error) {
       console.error('Upload Error:', error);
-      showNotification('✖ Failed to connect to server.', 'error');
+      showNotification('✖ Failed to connect.', 'error');
     } finally {
       setLoading(false);
     }
@@ -108,152 +98,165 @@ const CameraCapture: React.FC = () => {
   };
 
   return (
-    <>
+    <div style={styles.pageContainer}>
+      {/* CSS for filter buttons (inline) */}
       <style>{`
-        @keyframes pulse {
-          0% { opacity: 0.5; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.2); }
-          100% { opacity: 0.5; transform: scale(1); }
-        }
         .filter-btn {
+          background: rgba(255,255,255,0.05);
           border: 2px solid transparent;
-          transition: all 0.2s;
+          border-radius: 12px;
+          padding: 6px 12px;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.2s ease;
+          min-width: 60px;
         }
         .filter-btn.active {
-          border-color: #007bff;
-          background-color: rgba(0, 123, 255, 0.2);
+          border-color: #f5576c;
+          background: rgba(245, 87, 108, 0.15);
+        }
+        .filter-btn:hover {
+          background: rgba(255,255,255,0.1);
         }
       `}</style>
 
-      <div style={styles.pageContainer}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>AdwaShield Smart Cam</h1>
-          <div style={styles.liveIndicator}>
-            <div style={styles.redDot}></div>
-            <span style={styles.liveText}>LIVE FEED</span>
-          </div>
-        </div>
-
-        {/* Notification Banner */}
-        <div
-          style={{
-            ...styles.notification,
-            opacity: notification ? 1 : 0,
-            backgroundColor:
-              notification?.type === 'error'
-                ? '#dc3545'
-                : notification?.type === 'success'
-                ? '#28a745'
-                : '#17a2b8',
-          }}
-        >
-          {notification?.text || ' '}
-        </div>
-
-        <div style={styles.webcamWrapper}>
-          <div style={styles.cameraOverlay}>
-            <div
-              style={{
-                ...styles.corner,
-                top: 0,
-                left: 0,
-                borderTop: '4px solid white',
-                borderLeft: '4px solid white',
-              }}
-            ></div>
-            <div
-              style={{
-                ...styles.corner,
-                top: 0,
-                right: 0,
-                borderTop: '4px solid white',
-                borderRight: '4px solid white',
-              }}
-            ></div>
-            <div
-              style={{
-                ...styles.corner,
-                bottom: 0,
-                left: 0,
-                borderBottom: '4px solid white',
-                borderLeft: '4px solid white',
-              }}
-            ></div>
-            <div
-              style={{
-                ...styles.corner,
-                bottom: 0,
-                right: 0,
-                borderBottom: '4px solid white',
-                borderRight: '4px solid white',
-              }}
-            ></div>
-          </div>
-
-          {imgSrc ? (
-            <img src={imgSrc} alt="captured preview" style={styles.videoStream} />
-          ) : (
-            <Webcam
-              audio={false}
-              ref={webcamRef}
-              screenshotFormat="image/jpeg"
-              videoConstraints={videoConstraints}
-              style={{
-                ...styles.videoStream,
-                transform: 'scaleX(-1)',
-                filter: filterStyles[activeFilter], // Live preview with filter
-              }}
-            />
-          )}
-        </div>
-
-        {/* Filter Bar */}
-        {!imgSrc && (
-          <div style={styles.filterBar}>
-            {(
-              ['none', 'grayscale', 'sepia', 'invert', 'blur', 'vintage', 'hue-rotate'] as FilterType[]
-            ).map((filter) => (
-              <button
-                key={filter}
-                className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
-                style={styles.filterBtn}
-                onClick={() => setActiveFilter(filter)}
-              >
-                <span style={styles.filterLabel}>{filter.replace('-', ' ').toUpperCase()}</span>
-                <div
-                  style={{
-                    ...styles.filterPreview,
-                    filter: filterStyles[filter],
-                    backgroundImage: 'linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1)',
-                  }}
-                />
-              </button>
-            ))}
-          </div>
+      {/* Notification */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            style={{
+              ...styles.notification,
+              backgroundColor:
+                notification.type === 'error' ? '#dc3545' :
+                notification.type === 'success' ? '#28a745' : '#17a2b8',
+            }}
+          >
+            {notification.text}
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        <div style={styles.controls}>
-          {!imgSrc ? (
-            <button onClick={capture} style={styles.captureBtn}>
-              <div style={styles.innerCaptureBtn}></div>
-            </button>
-          ) : (
-            <div style={styles.actionButtonGroup}>
-              <button onClick={retake} style={styles.secondaryBtn}>
-                ⟲ Retake
-              </button>
-              <button onClick={uploadPhoto} disabled={loading} style={styles.primaryBtn}>
-                {loading ? 'Syncing...' : '⬆ Upload to Server'}
-              </button>
-            </div>
-          )}
+      {/* Header */}
+      <div style={styles.header}>
+        <h1 style={styles.title}>📷 AdwaShield</h1>
+        <div style={styles.liveIndicator}>
+          <motion.div
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+            style={styles.redDot}
+          />
+          <span style={styles.liveText}>LIVE</span>
         </div>
       </div>
-    </>
+
+      {/* Camera Preview */}
+      <motion.div
+        style={styles.webcamWrapper}
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div style={styles.cameraOverlay}>
+          <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
+          <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+          <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
+          <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+        </div>
+
+        {imgSrc ? (
+          <motion.img
+            src={imgSrc}
+            alt="captured"
+            style={styles.videoStream}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+          />
+        ) : (
+          <Webcam
+            audio={false}
+            ref={webcamRef}
+            screenshotFormat="image/jpeg"
+            videoConstraints={videoConstraints}
+            style={{
+              ...styles.videoStream,
+              transform: 'scaleX(-1)',
+              filter: filterStyles[activeFilter],
+            }}
+          />
+        )}
+      </motion.div>
+
+      {/* Filter Bar */}
+      {!imgSrc && (
+        <motion.div
+          style={styles.filterBar}
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {(['none', 'grayscale', 'sepia', 'invert', 'blur', 'vintage', 'hue-rotate'] as FilterType[]).map((filter) => (
+            <button
+              key={filter}
+              className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
+              style={styles.filterBtn}
+              onClick={() => setActiveFilter(filter)}
+            >
+              <span style={styles.filterLabel}>{filter.replace('-', ' ').toUpperCase()}</span>
+              <div
+                style={{
+                  ...styles.filterPreview,
+                  filter: filterStyles[filter],
+                  backgroundImage: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                }}
+              />
+            </button>
+          ))}
+        </motion.div>
+      )}
+
+      {/* Controls */}
+      <div style={styles.controls}>
+        {!imgSrc ? (
+          <motion.button
+            onClick={capture}
+            style={styles.captureBtn}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div style={styles.innerCaptureBtn} />
+          </motion.button>
+        ) : (
+          <motion.div
+            style={styles.actionButtonGroup}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <button onClick={retake} style={styles.secondaryBtn}>
+              ⟲ Retake
+            </button>
+            <motion.button
+              onClick={uploadPhoto}
+              disabled={loading}
+              style={styles.primaryBtn}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              {loading ? 'Syncing...' : '⬆ Upload'}
+            </motion.button>
+          </motion.div>
+        )}
+      </div>
+    </div>
   );
 };
 
-// --- Styles (extended) ---
+// --- Styles (Glass-morphism with modern touch) ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
@@ -261,10 +264,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '100vh',
-    backgroundColor: '#0a0a0a',
-    color: '#ffffff',
+    background: 'linear-gradient(145deg, #0b0b0b 0%, #1a1a1a 100%)',
     fontFamily: '"Inter", -apple-system, sans-serif',
     padding: '20px',
+    position: 'relative',
+  },
+  notification: {
+    position: 'absolute',
+    top: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '12px 24px',
+    borderRadius: '30px',
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
+    zIndex: 100,
+    maxWidth: '90%',
+    textAlign: 'center',
   },
   header: {
     display: 'flex',
@@ -272,29 +290,34 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     width: '100%',
     maxWidth: '800px',
-    marginBottom: '10px',
+    marginBottom: '15px',
+    padding: '0 10px',
   },
   title: {
-    fontSize: '24px',
+    fontSize: '26px',
     fontWeight: '600',
     letterSpacing: '1px',
     margin: 0,
+    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
   },
   liveIndicator: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
-    padding: '6px 12px',
-    borderRadius: '20px',
+    background: 'rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(10px)',
+    padding: '6px 16px',
+    borderRadius: '30px',
+    border: '1px solid rgba(255,255,255,0.1)',
   },
   redDot: {
     width: '10px',
     height: '10px',
-    backgroundColor: '#ff3333',
     borderRadius: '50%',
-    boxShadow: '0 0 8px #ff3333',
-    animation: 'pulse 1.5s infinite',
+    backgroundColor: '#ff3333',
+    boxShadow: '0 0 15px #ff3333',
   },
   liveText: {
     color: '#ff3333',
@@ -302,25 +325,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '12px',
     letterSpacing: '1px',
   },
-  notification: {
-    width: '100%',
-    maxWidth: '800px',
-    padding: '12px',
-    borderRadius: '8px',
-    textAlign: 'center',
-    fontWeight: 'bold',
-    marginBottom: '15px',
-    transition: 'opacity 0.3s ease',
-  },
   webcamWrapper: {
     position: 'relative',
     width: '100%',
     maxWidth: '800px',
     aspectRatio: '16/9',
     backgroundColor: '#1a1a1a',
-    borderRadius: '12px',
+    borderRadius: '20px',
     overflow: 'hidden',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+    border: '1px solid rgba(255,255,255,0.05)',
   },
   cameraOverlay: {
     position: 'absolute',
@@ -333,9 +347,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   corner: {
     position: 'absolute',
-    width: '40px',
-    height: '40px',
-    opacity: 0.7,
+    width: '30px',
+    height: '30px',
+    opacity: 0.8,
   },
   videoStream: {
     width: '100%',
@@ -344,45 +358,48 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   filterBar: {
     display: 'flex',
-    gap: '10px',
-    marginTop: '15px',
-    padding: '10px',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: '12px',
+    gap: '12px',
+    marginTop: '20px',
+    padding: '10px 20px',
+    background: 'rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '20px',
+    border: '1px solid rgba(255,255,255,0.08)',
     flexWrap: 'wrap',
     justifyContent: 'center',
     maxWidth: '800px',
     width: '100%',
   },
   filterBtn: {
-    background: 'rgba(255,255,255,0.1)',
+    // styles are defined in the className, keep minimal here
+    // but we need to override for basic style (some properties)
+    background: 'rgba(255,255,255,0.05)',
     border: '2px solid transparent',
-    borderRadius: '8px',
-    padding: '6px 10px',
+    borderRadius: '12px',
+    padding: '6px 12px',
     cursor: 'pointer',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     gap: '4px',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s ease',
     minWidth: '60px',
   },
   filterLabel: {
-    fontSize: '10px',
-    fontWeight: 'bold',
-    color: '#ccc',
+    fontSize: '9px',
+    fontWeight: '700',
+    color: '#aaa',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   },
   filterPreview: {
     width: '40px',
     height: '40px',
-    borderRadius: '6px',
-    backgroundImage: 'linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1)',
+    borderRadius: '8px',
     transition: 'filter 0.2s',
   },
   controls: {
-    marginTop: '30px',
+    marginTop: '25px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -390,49 +407,53 @@ const styles: { [key: string]: React.CSSProperties } = {
     height: '80px',
   },
   captureBtn: {
-    width: '70px',
-    height: '70px',
+    width: '72px',
+    height: '72px',
     borderRadius: '50%',
     backgroundColor: 'transparent',
-    border: '4px solid white',
+    border: '4px solid rgba(255,255,255,0.8)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     cursor: 'pointer',
     padding: 0,
-    transition: 'transform 0.2s',
+    outline: 'none',
+    boxShadow: '0 0 30px rgba(255,255,255,0.1)',
   },
   innerCaptureBtn: {
-    width: '54px',
-    height: '54px',
+    width: '56px',
+    height: '56px',
     borderRadius: '50%',
-    backgroundColor: 'white',
+    background: 'white',
+    boxShadow: '0 0 20px rgba(255,255,255,0.3)',
   },
   actionButtonGroup: {
     display: 'flex',
     gap: '20px',
   },
   secondaryBtn: {
-    padding: '12px 24px',
+    padding: '12px 28px',
     fontSize: '16px',
-    fontWeight: 'bold',
-    backgroundColor: '#333',
+    fontWeight: '600',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(10px)',
     color: 'white',
-    border: 'none',
-    borderRadius: '8px',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: '30px',
     cursor: 'pointer',
-    transition: 'background 0.2s',
+    transition: 'all 0.2s',
   },
   primaryBtn: {
-    padding: '12px 24px',
+    padding: '12px 32px',
     fontSize: '16px',
-    fontWeight: 'bold',
-    backgroundColor: '#007bff',
+    fontWeight: '600',
+    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '30px',
     cursor: 'pointer',
-    boxShadow: '0 4px 15px rgba(0, 123, 255, 0.4)',
+    boxShadow: '0 6px 20px rgba(245, 87, 108, 0.4)',
+    transition: 'all 0.2s',
   },
 };
 
