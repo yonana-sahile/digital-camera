@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,7 +15,14 @@ type FilterType =
   | 'invert'
   | 'blur'
   | 'vintage'
-  | 'hue-rotate';
+  | 'hue-rotate'
+  | 'warm'
+  | 'cool'
+  | 'vivid'
+  | 'dramatic'
+  | 'vignette';
+
+type CaptureMode = 'single' | 'timer' | 'burst';
 
 const CameraCapture: React.FC = () => {
   const webcamRef = useRef<Webcam>(null);
@@ -23,6 +30,13 @@ const CameraCapture: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>('none');
+  const [mode, setMode] = useState<CaptureMode>('single');
+  const [timerDelay, setTimerDelay] = useState<number>(3); // seconds
+  const [burstCount, setBurstCount] = useState<number>(3);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [isCapturing, setIsCapturing] = useState<boolean>(false);
+  const [showGrid, setShowGrid] = useState<boolean>(false);
+  const [capturedImages, setCapturedImages] = useState<string[]>([]);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
 
@@ -32,6 +46,7 @@ const CameraCapture: React.FC = () => {
     facingMode: 'user',
   };
 
+  // --- Filter definitions ---
   const filterStyles: Record<FilterType, string> = {
     none: 'none',
     grayscale: 'grayscale(100%)',
@@ -40,13 +55,20 @@ const CameraCapture: React.FC = () => {
     blur: 'blur(4px)',
     vintage: 'sepia(50%) contrast(1.2) brightness(0.9) saturate(0.8)',
     'hue-rotate': 'hue-rotate(180deg)',
+    warm: 'sepia(30%) brightness(1.1) saturate(1.3)',
+    cool: 'brightness(1.05) saturate(0.8) hue-rotate(15deg)',
+    vivid: 'saturate(1.8) contrast(1.1)',
+    dramatic: 'contrast(1.5) saturate(0.9) brightness(0.9)',
+    vignette: 'brightness(1.1) contrast(1.2) drop-shadow(0 0 100px rgba(0,0,0,0.5))', // not perfect but okay
   };
 
+  // --- Notifications ---
   const showNotification = (text: string, type: 'success' | 'error' | 'info') => {
     setNotification({ text, type });
     setTimeout(() => setNotification(null), 4000);
   };
 
+  // --- Capture with filter (canvas) ---
   const captureWithFilter = (): string | null => {
     const video = webcamRef.current?.video;
     if (!video) return null;
@@ -66,16 +88,63 @@ const CameraCapture: React.FC = () => {
     return canvas.toDataURL('image/jpeg');
   };
 
-  const capture = useCallback(async () => {
+  // --- Single capture ---
+  const performCapture = useCallback((): string | null => {
     const image = captureWithFilter();
     if (image) {
       setImgSrc(image);
+      setCapturedImages([image]);
       showNotification('Photo captured!', 'info');
+      return image;
     } else {
       showNotification('Failed to capture.', 'error');
+      return null;
     }
   }, [webcamRef, activeFilter]);
 
+  // --- Timer & Burst logic ---
+  const startCaptureSequence = useCallback(async () => {
+    if (isCapturing) return;
+    setIsCapturing(true);
+
+    if (mode === 'single') {
+      performCapture();
+      setIsCapturing(false);
+      return;
+    }
+
+    if (mode === 'timer') {
+      setCountdown(timerDelay);
+      for (let i = timerDelay; i > 0; i--) {
+        setCountdown(i);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      setCountdown(null);
+      performCapture();
+      setIsCapturing(false);
+      return;
+    }
+
+    if (mode === 'burst') {
+      const images: string[] = [];
+      for (let i = 0; i < burstCount; i++) {
+        const img = captureWithFilter();
+        if (img) {
+          images.push(img);
+          showNotification(`Burst ${i + 1}/${burstCount}`, 'info');
+        }
+        await new Promise((r) => setTimeout(r, 400)); // 400ms between shots
+      }
+      if (images.length > 0) {
+        setImgSrc(images[0]); // show first as preview
+        setCapturedImages(images);
+        showNotification(`Captured ${images.length} burst shots!`, 'success');
+      }
+      setIsCapturing(false);
+    }
+  }, [mode, timerDelay, burstCount, performCapture, captureWithFilter, isCapturing]);
+
+  // --- Upload ---
   const uploadPhoto = async () => {
     if (!imgSrc) return;
     setLoading(true);
@@ -83,7 +152,10 @@ const CameraCapture: React.FC = () => {
       const response = await axios.post<UploadResponse>(API_URL, { image: imgSrc });
       console.log('Upload Success:', response.data);
       showNotification('✓ Saved to database!', 'success');
-      setTimeout(() => setImgSrc(null), 2000);
+      setTimeout(() => {
+        setImgSrc(null);
+        setCapturedImages([]);
+      }, 2000);
     } catch (error) {
       console.error('Upload Error:', error);
       showNotification('✖ Failed to connect.', 'error');
@@ -92,14 +164,73 @@ const CameraCapture: React.FC = () => {
     }
   };
 
+  // --- Download ---
+  const downloadImage = () => {
+    if (!imgSrc) return;
+    const link = document.createElement('a');
+    link.href = imgSrc;
+    link.download = `photo-${Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // --- Share (Web Share API) ---
+  const shareImage = async () => {
+    if (!imgSrc) return;
+    try {
+      const response = await fetch(imgSrc);
+      const blob = await response.blob();
+      const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Check out my photo!',
+          files: [file],
+        });
+      } else {
+        showNotification('Share not supported on this browser.', 'info');
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+    }
+  };
+
+  // --- Retake ---
   const retake = () => {
     setImgSrc(null);
+    setCapturedImages([]);
+    setCountdown(null);
     setNotification(null);
   };
 
+  // --- Keyboard shortcuts ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === ' ' && !imgSrc && !isCapturing) {
+        e.preventDefault();
+        startCaptureSequence();
+      }
+      if (e.key === 'r' && imgSrc) {
+        retake();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [imgSrc, isCapturing, startCaptureSequence]);
+
+  // --- Grid overlay ---
+  const GridOverlay = () => (
+    <div style={styles.gridOverlay}>
+      <div style={styles.gridLineH} />
+      <div style={styles.gridLineH} />
+      <div style={styles.gridLineV} />
+      <div style={styles.gridLineV} />
+    </div>
+  );
+
+  // --- Render ---
   return (
     <div style={styles.pageContainer}>
-      {/* CSS for filter buttons (inline) */}
       <style>{`
         .filter-btn {
           background: rgba(255,255,255,0.05);
@@ -120,6 +251,10 @@ const CameraCapture: React.FC = () => {
         }
         .filter-btn:hover {
           background: rgba(255,255,255,0.1);
+        }
+        .mode-btn.active {
+          background: rgba(245, 87, 108, 0.2);
+          border-color: #f5576c;
         }
       `}</style>
 
@@ -167,6 +302,12 @@ const CameraCapture: React.FC = () => {
           <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
           <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
           <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+          {showGrid && !imgSrc && <GridOverlay />}
+          {countdown !== null && (
+            <div style={styles.countdownOverlay}>
+              <span style={styles.countdownNumber}>{countdown}</span>
+            </div>
+          )}
         </div>
 
         {imgSrc ? (
@@ -192,6 +333,69 @@ const CameraCapture: React.FC = () => {
         )}
       </motion.div>
 
+      {/* Toolbar (mode, grid, etc.) */}
+      {!imgSrc && (
+        <div style={styles.toolbar}>
+          <div style={styles.toolGroup}>
+            <button
+              className={`mode-btn ${mode === 'single' ? 'active' : ''}`}
+              style={styles.toolBtn}
+              onClick={() => setMode('single')}
+              title="Single shot"
+            >
+              📸
+            </button>
+            <button
+              className={`mode-btn ${mode === 'timer' ? 'active' : ''}`}
+              style={styles.toolBtn}
+              onClick={() => setMode('timer')}
+              title="Timer"
+            >
+              ⏱️
+            </button>
+            <button
+              className={`mode-btn ${mode === 'burst' ? 'active' : ''}`}
+              style={styles.toolBtn}
+              onClick={() => setMode('burst')}
+              title="Burst"
+            >
+              🔫
+            </button>
+          </div>
+          <div style={styles.toolGroup}>
+            {mode === 'timer' && (
+              <select
+                value={timerDelay}
+                onChange={(e) => setTimerDelay(Number(e.target.value))}
+                style={styles.select}
+              >
+                <option value={3}>3s</option>
+                <option value={5}>5s</option>
+                <option value={10}>10s</option>
+              </select>
+            )}
+            {mode === 'burst' && (
+              <select
+                value={burstCount}
+                onChange={(e) => setBurstCount(Number(e.target.value))}
+                style={styles.select}
+              >
+                <option value={3}>3 shots</option>
+                <option value={5}>5 shots</option>
+                <option value={10}>10 shots</option>
+              </select>
+            )}
+            <button
+              style={{ ...styles.toolBtn, backgroundColor: showGrid ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              onClick={() => setShowGrid(!showGrid)}
+              title="Toggle Grid"
+            >
+              ⊞
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filter Bar */}
       {!imgSrc && (
         <motion.div
@@ -200,7 +404,20 @@ const CameraCapture: React.FC = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          {(['none', 'grayscale', 'sepia', 'invert', 'blur', 'vintage', 'hue-rotate'] as FilterType[]).map((filter) => (
+          {([
+            'none',
+            'grayscale',
+            'sepia',
+            'invert',
+            'blur',
+            'vintage',
+            'hue-rotate',
+            'warm',
+            'cool',
+            'vivid',
+            'dramatic',
+            'vignette',
+          ] as FilterType[]).map((filter) => (
             <button
               key={filter}
               className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
@@ -224,7 +441,8 @@ const CameraCapture: React.FC = () => {
       <div style={styles.controls}>
         {!imgSrc ? (
           <motion.button
-            onClick={capture}
+            onClick={startCaptureSequence}
+            disabled={isCapturing}
             style={styles.captureBtn}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -240,6 +458,14 @@ const CameraCapture: React.FC = () => {
             <button onClick={retake} style={styles.secondaryBtn}>
               ⟲ Retake
             </button>
+            <button onClick={downloadImage} style={styles.secondaryBtn}>
+              ⬇ Download
+            </button>
+            {navigator.share && (
+              <button onClick={shareImage} style={styles.secondaryBtn}>
+                📤 Share
+              </button>
+            )}
             <motion.button
               onClick={uploadPhoto}
               disabled={loading}
@@ -252,11 +478,25 @@ const CameraCapture: React.FC = () => {
           </motion.div>
         )}
       </div>
+
+      {/* Burst previews (if multiple) */}
+      {capturedImages.length > 1 && (
+        <div style={styles.burstPreviews}>
+          {capturedImages.map((img, idx) => (
+            <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />
+          ))}
+        </div>
+      )}
+
+      {/* Keyboard hint */}
+      <div style={styles.keyHint}>
+        <span>Space: Capture &nbsp;|&nbsp; R: Retake</span>
+      </div>
     </div>
   );
 };
 
-// --- Styles (Glass-morphism with modern touch) ---
+// --- Styles (extensive) ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
@@ -356,10 +596,93 @@ const styles: { [key: string]: React.CSSProperties } = {
     height: '100%',
     objectFit: 'cover',
   },
+  gridOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    zIndex: 5,
+  },
+  gridLineH: {
+    position: 'absolute',
+    left: '0%',
+    width: '100%',
+    height: '1px',
+    background: 'rgba(255,255,255,0.15)',
+    top: '33.33%',
+    borderTop: '1px dashed rgba(255,255,255,0.2)',
+  },
+  gridLineV: {
+    position: 'absolute',
+    top: '0%',
+    height: '100%',
+    width: '1px',
+    background: 'rgba(255,255,255,0.15)',
+    left: '33.33%',
+    borderLeft: '1px dashed rgba(255,255,255,0.2)',
+  },
+  countdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 20,
+  },
+  countdownNumber: {
+    fontSize: '120px',
+    fontWeight: 'bold',
+    color: 'white',
+    textShadow: '0 0 30px rgba(0,0,0,0.8)',
+  },
+  toolbar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: '800px',
+    marginTop: '15px',
+    padding: '8px 16px',
+    background: 'rgba(255,255,255,0.04)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '16px',
+    border: '1px solid rgba(255,255,255,0.05)',
+    flexWrap: 'wrap',
+    gap: '10px',
+  },
+  toolGroup: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+  },
+  toolBtn: {
+    background: 'transparent',
+    border: '2px solid transparent',
+    borderRadius: '10px',
+    padding: '6px 12px',
+    fontSize: '18px',
+    cursor: 'pointer',
+    color: '#ccc',
+    transition: 'all 0.2s',
+  },
+  select: {
+    background: 'rgba(255,255,255,0.08)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '8px',
+    padding: '4px 8px',
+    color: 'white',
+    fontSize: '14px',
+    cursor: 'pointer',
+  },
   filterBar: {
     display: 'flex',
     gap: '12px',
-    marginTop: '20px',
+    marginTop: '15px',
     padding: '10px 20px',
     background: 'rgba(255,255,255,0.05)',
     backdropFilter: 'blur(10px)',
@@ -371,8 +694,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '100%',
   },
   filterBtn: {
-    // styles are defined in the className, keep minimal here
-    // but we need to override for basic style (some properties)
     background: 'rgba(255,255,255,0.05)',
     border: '2px solid transparent',
     borderRadius: '12px',
@@ -430,6 +751,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   actionButtonGroup: {
     display: 'flex',
     gap: '20px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   secondaryBtn: {
     padding: '12px 28px',
@@ -454,6 +777,27 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     boxShadow: '0 6px 20px rgba(245, 87, 108, 0.4)',
     transition: 'all 0.2s',
+  },
+  burstPreviews: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: '15px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    maxWidth: '800px',
+  },
+  burstThumb: {
+    width: '60px',
+    height: '60px',
+    objectFit: 'cover',
+    borderRadius: '8px',
+    border: '2px solid rgba(255,255,255,0.1)',
+  },
+  keyHint: {
+    marginTop: '15px',
+    fontSize: '12px',
+    color: '#666',
+    letterSpacing: '0.5px',
   },
 };
 
