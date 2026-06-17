@@ -38,6 +38,12 @@ const CameraCapture: React.FC = () => {
   const [showGrid, setShowGrid] = useState<boolean>(false);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  // --- NEW FEATURES ---
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [autoEnhance, setAutoEnhance] = useState<boolean>(false);
+  const [watermarkText, setWatermarkText] = useState<string>('AdwaShield');
+  const [showHistogram, setShowHistogram] = useState<boolean>(false);
+  const [histogramData, setHistogramData] = useState<number[]>([]);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
 
@@ -84,14 +90,54 @@ const CameraCapture: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // --- Capture with filter ---
+  // --- Auto‑enhance (contrast stretch + saturation boost) ---
+  const applyAutoEnhance = (imageData: ImageData): ImageData => {
+    const data = imageData.data;
+    // Find min/max per channel
+    let minR = 255,
+      maxR = 0,
+      minG = 255,
+      maxG = 0,
+      minB = 255,
+      maxB = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i],
+        g = data[i + 1],
+        b = data[i + 2];
+      if (r < minR) minR = r;
+      if (r > maxR) maxR = r;
+      if (g < minG) minG = g;
+      if (g > maxG) maxG = g;
+      if (b < minB) minB = b;
+      if (b > maxB) maxB = b;
+    }
+    // Stretch each channel to [0,255]
+    const rangeR = maxR - minR || 1;
+    const rangeG = maxG - minG || 1;
+    const rangeB = maxB - minB || 1;
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = ((data[i] - minR) / rangeR) * 255;
+      data[i + 1] = ((data[i + 1] - minG) / rangeG) * 255;
+      data[i + 2] = ((data[i + 2] - minB) / rangeB) * 255;
+    }
+    // Slight saturation boost (simple)
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i],
+        g = data[i + 1],
+        b = data[i + 2];
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+      const boost = 1.2;
+      data[i] = Math.min(255, gray + (r - gray) * boost);
+      data[i + 1] = Math.min(255, gray + (g - gray) * boost);
+      data[i + 2] = Math.min(255, gray + (b - gray) * boost);
+    }
+    return imageData;
+  };
+
+  // --- Capture with filter and enhancements ---
   const captureWithFilter = (): string | null => {
     const video = webcamRef.current?.video;
     if (!video) return null;
-
-    if (activeFilter === 'none') {
-      return webcamRef.current?.getScreenshot() || null;
-    }
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -99,8 +145,47 @@ const CameraCapture: React.FC = () => {
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    ctx.filter = filterStyles[activeFilter];
+
+    // Draw the video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // If auto‑enhance is on, apply it to the raw image
+    if (autoEnhance) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const enhanced = applyAutoEnhance(imageData);
+      ctx.putImageData(enhanced, 0, 0);
+    }
+
+    // Now apply the CSS filter if any (except 'none')
+    if (activeFilter !== 'none') {
+      ctx.filter = filterStyles[activeFilter];
+      // Re‑draw with filter on top
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (tempCtx) {
+        tempCtx.drawImage(canvas, 0, 0);
+        canvas.width = canvas.width; // clear
+        ctx.filter = filterStyles[activeFilter];
+        ctx.drawImage(tempCanvas, 0, 0);
+      }
+    }
+
+    // Add watermark if text is not empty
+    if (watermarkText.trim()) {
+      ctx.filter = 'none'; // reset filter
+      ctx.font = 'bold 24px Inter, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      // Shadow for readability
+      ctx.shadowColor = 'rgba(0,0,0,0.7)';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillText(watermarkText, canvas.width - 20, canvas.height - 20);
+      ctx.shadowBlur = 0;
+    }
+
     return canvas.toDataURL('image/jpeg');
   };
 
@@ -116,9 +201,9 @@ const CameraCapture: React.FC = () => {
       showNotification('Failed to capture.', 'error');
       return null;
     }
-  }, [webcamRef, activeFilter]);
+  }, [webcamRef, activeFilter, autoEnhance, watermarkText]);
 
-  // --- Timer & Burst ---
+  // --- Timer & Burst (same as before, but uses performCapture) ---
   const startCaptureSequence = useCallback(async () => {
     if (isCapturing) return;
     setIsCapturing(true);
@@ -160,7 +245,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [mode, timerDelay, burstCount, performCapture, captureWithFilter, isCapturing]);
 
-  // --- Upload ---
+  // --- Upload, Download, Share (unchanged) ---
   const uploadPhoto = async () => {
     if (!imgSrc) return;
     setLoading(true);
@@ -180,7 +265,6 @@ const CameraCapture: React.FC = () => {
     }
   };
 
-  // --- Download ---
   const downloadImage = () => {
     if (!imgSrc) return;
     const link = document.createElement('a');
@@ -191,7 +275,6 @@ const CameraCapture: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // --- Share ---
   const shareImage = async () => {
     if (!imgSrc) return;
     try {
@@ -211,13 +294,90 @@ const CameraCapture: React.FC = () => {
     }
   };
 
-  // --- Retake ---
   const retake = () => {
     setImgSrc(null);
     setCapturedImages([]);
     setCountdown(null);
     setNotification(null);
   };
+
+  // --- Voice Commands (Web Speech API) ---
+  useEffect(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      return; // not supported
+    }
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: any) => {
+      const last = event.results.length - 1;
+      const command = event.results[last][0].transcript.toLowerCase().trim();
+      console.log('Voice command:', command);
+
+      // Simple command parsing
+      if (command.includes('capture') || command.includes('take photo')) {
+        if (!imgSrc && !isCapturing) startCaptureSequence();
+      } else if (command.includes('retake') || command.includes('delete')) {
+        if (imgSrc) retake();
+      } else if (command.includes('apply')) {
+        // Try to match filter name
+        const filterNames = Object.keys(filterLabels) as FilterType[];
+        for (const key of filterNames) {
+          if (command.includes(filterLabels[key].toLowerCase())) {
+            setActiveFilter(key);
+            showNotification(`Applied ${filterLabels[key]}`, 'info');
+            break;
+          }
+        }
+      } else if (command.includes('grid')) {
+        setShowGrid(!showGrid);
+      } else if (command.includes('enhance')) {
+        setAutoEnhance(!autoEnhance);
+        showNotification(`Auto‑enhance ${!autoEnhance ? 'on' : 'off'}`, 'info');
+      }
+    };
+
+    if (isListening) {
+      recognition.start();
+    } else {
+      recognition.stop();
+    }
+
+    return () => {
+      recognition.stop();
+    };
+  }, [isListening, startCaptureSequence, imgSrc, isCapturing]);
+
+  // --- Live Histogram (optional) ---
+  const updateHistogram = useCallback(() => {
+    if (!showHistogram) return;
+    const video = webcamRef.current?.video;
+    if (!video || video.readyState !== 4) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 180;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, 320, 180);
+    const imageData = ctx.getImageData(0, 0, 320, 180);
+    const data = imageData.data;
+    const histogram = new Array(256).fill(0);
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      histogram[Math.floor(gray)]++;
+    }
+    setHistogramData(histogram);
+  }, [showHistogram]);
+
+  useEffect(() => {
+    if (showHistogram) {
+      const interval = setInterval(updateHistogram, 500);
+      return () => clearInterval(interval);
+    }
+  }, [showHistogram, updateHistogram]);
 
   // --- Keyboard shortcuts ---
   useEffect(() => {
@@ -234,7 +394,7 @@ const CameraCapture: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [imgSrc, isCapturing, startCaptureSequence]);
 
-  // --- Grid overlay ---
+  // --- Grid overlay (unchanged) ---
   const GridOverlay = () => (
     <div style={styles.gridOverlay}>
       <div style={{ ...styles.gridLine, top: '33.33%' }} />
@@ -305,9 +465,9 @@ const CameraCapture: React.FC = () => {
         </div>
       </div>
 
-      {/* Main container with sidebar and camera */}
+      {/* Main container with sidebar */}
       <div style={styles.mainContainer}>
-        {/* Filter Toggle Button (left side) */}
+        {/* Filter Toggle */}
         <button
           style={styles.filterToggle}
           onClick={() => setShowFilters(!showFilters)}
@@ -350,7 +510,7 @@ const CameraCapture: React.FC = () => {
                     className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
                     onClick={() => {
                       setActiveFilter(filter);
-                      setShowFilters(false); // close after selection
+                      setShowFilters(false);
                     }}
                   >
                     <div
@@ -371,7 +531,7 @@ const CameraCapture: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Camera and controls */}
+        {/* Camera Section */}
         <div style={styles.cameraSection}>
           {/* Camera Preview */}
           <motion.div
@@ -389,6 +549,34 @@ const CameraCapture: React.FC = () => {
               {countdown !== null && (
                 <div style={styles.countdownOverlay}>
                   <span style={styles.countdownNumber}>{countdown}</span>
+                </div>
+              )}
+              {/* Histogram */}
+              {showHistogram && !imgSrc && histogramData.length > 0 && (
+                <div style={styles.histogramContainer}>
+                  <canvas
+                    ref={(canvas) => {
+                      if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                          const width = canvas.width;
+                          const height = canvas.height;
+                          ctx.clearRect(0, 0, width, height);
+                          const max = Math.max(...histogramData);
+                          if (max > 0) {
+                            for (let i = 0; i < histogramData.length; i++) {
+                              const h = (histogramData[i] / max) * height;
+                              ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                              ctx.fillRect(i * (width / 256), height - h, width / 256, h);
+                            }
+                          }
+                        }
+                      }
+                    }}
+                    width={256}
+                    height={64}
+                    style={{ width: '100%', height: '100%' }}
+                  />
                 </div>
               )}
             </div>
@@ -416,7 +604,7 @@ const CameraCapture: React.FC = () => {
             )}
           </motion.div>
 
-          {/* Toolbar (modes, grid, etc.) */}
+          {/* Extended Toolbar */}
           {!imgSrc && (
             <div style={styles.toolbar}>
               <div style={styles.toolGroup}>
@@ -475,6 +663,27 @@ const CameraCapture: React.FC = () => {
                 >
                   ⊞
                 </button>
+                <button
+                  style={{ ...styles.toolBtn, backgroundColor: autoEnhance ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+                  onClick={() => setAutoEnhance(!autoEnhance)}
+                  title="Auto‑Enhance"
+                >
+                  ✨
+                </button>
+                <button
+                  style={{ ...styles.toolBtn, backgroundColor: showHistogram ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+                  onClick={() => setShowHistogram(!showHistogram)}
+                  title="Histogram"
+                >
+                  📊
+                </button>
+                <button
+                  style={{ ...styles.toolBtn, backgroundColor: isListening ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+                  onClick={() => setIsListening(!isListening)}
+                  title="Voice Commands"
+                >
+                  🎤
+                </button>
               </div>
             </div>
           )}
@@ -532,7 +741,7 @@ const CameraCapture: React.FC = () => {
 
           {/* Keyboard hint */}
           <div style={styles.keyHint}>
-            <span>Space: Capture &nbsp;|&nbsp; R: Retake</span>
+            <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; 🎤: Voice</span>
           </div>
         </div>
       </div>
@@ -540,7 +749,7 @@ const CameraCapture: React.FC = () => {
   );
 };
 
-// --- Updated styles with sidebar support ---
+// --- Styles (updated with histogram and new buttons) ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
@@ -743,6 +952,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
     color: 'white',
     textShadow: '0 0 30px rgba(0,0,0,0.8)',
+  },
+  histogramContainer: {
+    position: 'absolute',
+    bottom: '20px',
+    right: '20px',
+    width: '160px',
+    height: '40px',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: '8px',
+    padding: '4px',
+    zIndex: 15,
   },
   toolbar: {
     display: 'flex',
