@@ -6,6 +6,8 @@ import * as faceapi from 'face-api.js';
 import PhotoGallery from './PhotoGallery';
 import GifMaker from './GifMaker';
 import TimeLapse from './TimeLapse';
+import PhotoEditor from './PhotoEditor';      // new
+import Settings from './Settings';            // new
 
 // --- Type definitions ---
 interface UploadResponse {
@@ -67,11 +69,35 @@ const CameraCapture: React.FC = () => {
   const [modelsLoaded, setModelsLoaded] = useState<boolean>(false);
   const [faceDetections, setFaceDetections] = useState<faceapi.FaceDetection[]>([]);
 
-  // --- New component toggles ---
+  // --- Component toggles ---
   const [showGallery, setShowGallery] = useState<boolean>(false);
   const [showGifMaker, setShowGifMaker] = useState<boolean>(false);
   const [showTimeLapse, setShowTimeLapse] = useState<boolean>(false);
   const [timeLapseImages, setTimeLapseImages] = useState<string[]>([]);
+
+  // --- NEW: Photo Editor & Settings ---
+  const [showEditor, setShowEditor] = useState<boolean>(false);
+  const [editorImage, setEditorImage] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+
+  // Custom watermark image settings
+  const [watermarkImage, setWatermarkImage] = useState<string | null>(null);
+  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(80);
+  const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right');
+  const watermarkImgRef = useRef<HTMLImageElement | null>(null);
+
+  // Pre‑load watermark image when it changes
+  useEffect(() => {
+    if (watermarkImage) {
+      const img = new Image();
+      img.onload = () => {
+        watermarkImgRef.current = img;
+      };
+      img.src = watermarkImage;
+    } else {
+      watermarkImgRef.current = null;
+    }
+  }, [watermarkImage]);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
 
@@ -252,8 +278,48 @@ const CameraCapture: React.FC = () => {
       ctx.shadowBlur = 0;
     }
 
-    // Watermark
-    if (watermarkText.trim()) {
+    // --- Watermark (custom image or text) ---
+    if (watermarkImgRef.current) {
+      // Draw image watermark
+      const img = watermarkImgRef.current;
+      const margin = 20;
+      let x = 0,
+        y = 0;
+      const w = img.width,
+        h = img.height;
+      // Scale if image is too large (max 200px width)
+      let scale = 1;
+      if (w > 200) scale = 200 / w;
+      const drawW = w * scale;
+      const drawH = h * scale;
+
+      switch (watermarkPosition) {
+        case 'bottom-right':
+          x = canvas.width - drawW - margin;
+          y = canvas.height - drawH - margin;
+          break;
+        case 'bottom-left':
+          x = margin;
+          y = canvas.height - drawH - margin;
+          break;
+        case 'top-right':
+          x = canvas.width - drawW - margin;
+          y = margin;
+          break;
+        case 'top-left':
+          x = margin;
+          y = margin;
+          break;
+        case 'center':
+          x = (canvas.width - drawW) / 2;
+          y = (canvas.height - drawH) / 2;
+          break;
+      }
+      ctx.globalAlpha = watermarkOpacity / 100;
+      ctx.drawImage(img, x, y, drawW, drawH);
+      ctx.globalAlpha = 1.0;
+    } else if (watermarkText.trim()) {
+      // fallback to text
       ctx.font = 'bold 24px Inter, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'bottom';
@@ -273,6 +339,8 @@ const CameraCapture: React.FC = () => {
     selectedSticker,
     faceDetections,
     faceDetection,
+    watermarkPosition,
+    watermarkOpacity,
   ]);
 
   // --- Save to gallery (localStorage) ---
@@ -294,7 +362,7 @@ const CameraCapture: React.FC = () => {
     if (image) {
       setImgSrc(image);
       setCapturedImages([image]);
-      savePhotoToGallery(image); // save to gallery
+      savePhotoToGallery(image);
       showNotification('Photo captured!', 'info');
       return image;
     } else {
@@ -303,7 +371,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [captureWithFilter]);
 
-  // --- Timer & Burst (async due to delays) ---
+  // --- Timer & Burst ---
   const startCaptureSequence = useCallback(async () => {
     if (isCapturing) return;
     setIsCapturing(true);
@@ -332,7 +400,7 @@ const CameraCapture: React.FC = () => {
         const img = captureWithFilter();
         if (img) {
           images.push(img);
-          savePhotoToGallery(img); // save each burst shot
+          savePhotoToGallery(img);
           showNotification(`Burst ${i + 1}/${burstCount}`, 'info');
         }
         await new Promise((r) => setTimeout(r, 400));
@@ -355,7 +423,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [captureWithFilter, timeLapseImages.length]);
 
-  // --- Upload, Download, Share (unchanged) ---
+  // --- Upload, Download, Share ---
   const uploadPhoto = async () => {
     if (!imgSrc) return;
     setLoading(true);
@@ -463,6 +531,8 @@ const CameraCapture: React.FC = () => {
         setShowGifMaker(true);
       } else if (command.includes('timelapse') || command.includes('time lapse')) {
         setShowTimeLapse(true);
+      } else if (command.includes('settings')) {
+        setShowSettings(true);
       }
     };
 
@@ -580,7 +650,7 @@ const CameraCapture: React.FC = () => {
     };
   }, [faceDetection, modelsLoaded, selectedSticker, faceDetections, showGrid]);
 
-  // --- Histogram (unchanged) ---
+  // --- Histogram ---
   const updateHistogram = useCallback(() => {
     if (!showHistogram) return;
     const video = webcamRef.current?.video;
@@ -964,6 +1034,13 @@ const CameraCapture: React.FC = () => {
                 >
                   ⏱️
                 </button>
+                <button
+                  style={{ ...styles.toolBtn }}
+                  onClick={() => setShowSettings(true)}
+                  title="Settings"
+                >
+                  ⚙️
+                </button>
               </div>
             </div>
           )}
@@ -997,6 +1074,15 @@ const CameraCapture: React.FC = () => {
                     📤 Share
                   </button>
                 )}
+                <button
+                  onClick={() => {
+                    setEditorImage(imgSrc);
+                    setShowEditor(true);
+                  }}
+                  style={styles.secondaryBtn}
+                >
+                  ✏️ Edit
+                </button>
                 <motion.button
                   onClick={uploadPhoto}
                   disabled={loading}
@@ -1043,13 +1129,39 @@ const CameraCapture: React.FC = () => {
           setTimeLapseImages([]);
         }}
         onCapture={handleTimeLapseCapture}
-        // Optionally pass captured images for GIF maker later
+      />
+      <PhotoEditor
+        imageSrc={editorImage || ''}
+        isOpen={showEditor}
+        onClose={(editedImage) => {
+          setShowEditor(false);
+          if (editedImage) {
+            setImgSrc(editedImage);
+            // Optionally update the gallery or re‑save
+            // We can replace the current gallery entry, but for simplicity we'll save as new.
+            savePhotoToGallery(editedImage);
+            showNotification('Edited photo saved!', 'success');
+          }
+          setEditorImage(null);
+        }}
+      />
+      <Settings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        watermarkText={watermarkText}
+        onWatermarkTextChange={setWatermarkText}
+        watermarkImage={watermarkImage}
+        onWatermarkImageChange={setWatermarkImage}
+        watermarkOpacity={watermarkOpacity}
+        onWatermarkOpacityChange={setWatermarkOpacity}
+        watermarkPosition={watermarkPosition}
+        onWatermarkPositionChange={setWatermarkPosition}
       />
     </div>
   );
 };
 
-// --- Styles (unchanged – same as before) ---
+// --- Styles (unchanged) ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
