@@ -3,6 +3,9 @@ import Webcam from 'react-webcam';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as faceapi from 'face-api.js';
+import PhotoGallery from './PhotoGallery';
+import GifMaker from './GifMaker';
+import TimeLapse from './TimeLapse';
 
 // --- Type definitions ---
 interface UploadResponse {
@@ -38,7 +41,7 @@ const stickerMap: Record<StickerType, string> = {
 const CameraCapture: React.FC = () => {
   // --- State ---
   const webcamRef = useRef<Webcam>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null); // overlay for face detection and stickers
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -63,6 +66,12 @@ const CameraCapture: React.FC = () => {
   const [backgroundBlur, setBackgroundBlur] = useState<boolean>(false);
   const [modelsLoaded, setModelsLoaded] = useState<boolean>(false);
   const [faceDetections, setFaceDetections] = useState<faceapi.FaceDetection[]>([]);
+
+  // --- New component toggles ---
+  const [showGallery, setShowGallery] = useState<boolean>(false);
+  const [showGifMaker, setShowGifMaker] = useState<boolean>(false);
+  const [showTimeLapse, setShowTimeLapse] = useState<boolean>(false);
+  const [timeLapseImages, setTimeLapseImages] = useState<string[]>([]);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
 
@@ -109,7 +118,7 @@ const CameraCapture: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // --- Auto‑enhance (histogram stretch + saturation) ---
+  // --- Auto‑enhance ---
   const applyAutoEnhance = (imageData: ImageData): ImageData => {
     const data = imageData.data;
     let minR = 255,
@@ -150,8 +159,8 @@ const CameraCapture: React.FC = () => {
     return imageData;
   };
 
-  // --- Capture with all effects ---
-  const captureWithFilter = useCallback(async (): Promise<string | null> => {
+  // --- Capture with all effects (synchronous) ---
+  const captureWithFilter = useCallback((): string | null => {
     const video = webcamRef.current?.video;
     if (!video) return null;
 
@@ -165,29 +174,25 @@ const CameraCapture: React.FC = () => {
     // Draw video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Background blur (simple: blur the whole canvas, then overlay face region with original)
+    // Background blur (with face preservation)
     if (backgroundBlur) {
-      // Get face detection to keep the person sharp
       let faceBox = null;
       if (faceDetection && faceDetections.length > 0) {
         const det = faceDetections[0];
         faceBox = det.box;
       }
-      // Blur the entire canvas
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
       const tempCtx = tempCanvas.getContext('2d');
       if (tempCtx) {
         tempCtx.drawImage(canvas, 0, 0);
-        canvas.width = canvas.width; // clear
+        canvas.width = canvas.width;
         ctx.filter = 'blur(20px)';
         ctx.drawImage(tempCanvas, 0, 0);
         ctx.filter = 'none';
-        // If we have a face box, overlay the unblurred face region
         if (faceBox) {
           const { x, y, width, height } = faceBox;
-          // Expand region a bit
           const pad = 0.3;
           const cx = x + width / 2;
           const cy = y + height / 2;
@@ -195,12 +200,10 @@ const CameraCapture: React.FC = () => {
           const newH = height * (1 + pad);
           const sx = cx - newW / 2;
           const sy = cy - newH / 2;
-          // Clip to canvas bounds
           const srcX = Math.max(0, sx);
           const srcY = Math.max(0, sy);
           const srcW = Math.min(canvas.width, sx + newW) - srcX;
           const srcH = Math.min(canvas.height, sy + newH) - srcY;
-          // Draw the original (unblurred) region from tempCanvas
           ctx.drawImage(tempCanvas, srcX, srcY, srcW, srcH, srcX, srcY, srcW, srcH);
         }
       }
@@ -228,7 +231,7 @@ const CameraCapture: React.FC = () => {
       }
     }
 
-    // Draw sticker using face detection
+    // Draw sticker
     if (selectedSticker !== 'none' && faceDetections.length > 0) {
       const detection = faceDetections[0];
       const box = detection.box;
@@ -272,12 +275,26 @@ const CameraCapture: React.FC = () => {
     faceDetection,
   ]);
 
-  // --- Single capture ---
-  const performCapture = useCallback(async (): Promise<string | null> => {
-    const image = await captureWithFilter();
+  // --- Save to gallery (localStorage) ---
+  const savePhotoToGallery = (dataURL: string) => {
+    const stored = localStorage.getItem('adwashield_photos');
+    let photos: any[] = stored ? JSON.parse(stored) : [];
+    const newPhoto = {
+      id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      dataURL: dataURL,
+      timestamp: Date.now(),
+    };
+    photos.unshift(newPhoto);
+    localStorage.setItem('adwashield_photos', JSON.stringify(photos));
+  };
+
+  // --- Single capture (synchronous) ---
+  const performCapture = useCallback((): string | null => {
+    const image = captureWithFilter();
     if (image) {
       setImgSrc(image);
       setCapturedImages([image]);
+      savePhotoToGallery(image); // save to gallery
       showNotification('Photo captured!', 'info');
       return image;
     } else {
@@ -286,13 +303,13 @@ const CameraCapture: React.FC = () => {
     }
   }, [captureWithFilter]);
 
-  // --- Timer & Burst ---
+  // --- Timer & Burst (async due to delays) ---
   const startCaptureSequence = useCallback(async () => {
     if (isCapturing) return;
     setIsCapturing(true);
 
     if (mode === 'single') {
-      await performCapture();
+      performCapture();
       setIsCapturing(false);
       return;
     }
@@ -304,7 +321,7 @@ const CameraCapture: React.FC = () => {
         await new Promise((r) => setTimeout(r, 1000));
       }
       setCountdown(null);
-      await performCapture();
+      performCapture();
       setIsCapturing(false);
       return;
     }
@@ -312,9 +329,10 @@ const CameraCapture: React.FC = () => {
     if (mode === 'burst') {
       const images: string[] = [];
       for (let i = 0; i < burstCount; i++) {
-        const img = await captureWithFilter();
+        const img = captureWithFilter();
         if (img) {
           images.push(img);
+          savePhotoToGallery(img); // save each burst shot
           showNotification(`Burst ${i + 1}/${burstCount}`, 'info');
         }
         await new Promise((r) => setTimeout(r, 400));
@@ -328,7 +346,16 @@ const CameraCapture: React.FC = () => {
     }
   }, [mode, timerDelay, burstCount, performCapture, captureWithFilter, isCapturing]);
 
-  // --- Upload, Download, Share ---
+  // --- Time‑lapse capture handler ---
+  const handleTimeLapseCapture = useCallback(() => {
+    const image = captureWithFilter();
+    if (image) {
+      setTimeLapseImages((prev) => [...prev, image]);
+      showNotification(`Time‑lapse frame captured (${timeLapseImages.length + 1})`, 'info');
+    }
+  }, [captureWithFilter, timeLapseImages.length]);
+
+  // --- Upload, Download, Share (unchanged) ---
   const uploadPhoto = async () => {
     if (!imgSrc) return;
     setLoading(true);
@@ -384,7 +411,7 @@ const CameraCapture: React.FC = () => {
     setNotification(null);
   };
 
-  // --- Voice Commands ---
+  // --- Voice Commands (updated with new features) ---
   useEffect(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       return;
@@ -430,6 +457,12 @@ const CameraCapture: React.FC = () => {
       } else if (command.includes('face') || command.includes('detect')) {
         setFaceDetection(!faceDetection);
         showNotification(`Face detection ${!faceDetection ? 'on' : 'off'}`, 'info');
+      } else if (command.includes('gallery')) {
+        setShowGallery(true);
+      } else if (command.includes('gif')) {
+        setShowGifMaker(true);
+      } else if (command.includes('timelapse') || command.includes('time lapse')) {
+        setShowTimeLapse(true);
       }
     };
 
@@ -461,7 +494,7 @@ const CameraCapture: React.FC = () => {
     loadModels();
   }, []);
 
-  // --- Real‑time overlay (face detection, stickers, grid) ---
+  // --- Real‑time overlay ---
   useEffect(() => {
     if (!webcamRef.current?.video || !canvasRef.current) return;
 
@@ -477,7 +510,6 @@ const CameraCapture: React.FC = () => {
       canvas.height = video.videoHeight || 480;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Face detection
       if (faceDetection && modelsLoaded) {
         try {
           const detections = await faceapi.detectAllFaces(
@@ -499,7 +531,6 @@ const CameraCapture: React.FC = () => {
         }
       }
 
-      // Draw sticker (real‑time)
       if (selectedSticker !== 'none' && faceDetections.length > 0) {
         const detection = faceDetections[0];
         const box = detection.box;
@@ -520,7 +551,6 @@ const CameraCapture: React.FC = () => {
         ctx.shadowBlur = 0;
       }
 
-      // Grid
       if (showGrid) {
         ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.lineWidth = 1;
@@ -550,7 +580,7 @@ const CameraCapture: React.FC = () => {
     };
   }, [faceDetection, modelsLoaded, selectedSticker, faceDetections, showGrid]);
 
-  // --- Histogram ---
+  // --- Histogram (unchanged) ---
   const updateHistogram = useCallback(() => {
     if (!showHistogram) return;
     const video = webcamRef.current?.video;
@@ -735,7 +765,7 @@ const CameraCapture: React.FC = () => {
               <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
               <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
 
-              {/* Overlay canvas for face detection, stickers, grid */}
+              {/* Overlay canvas */}
               <canvas
                 ref={canvasRef}
                 style={{
@@ -806,7 +836,7 @@ const CameraCapture: React.FC = () => {
             )}
           </motion.div>
 
-          {/* Toolbar */}
+          {/* Toolbar with new buttons */}
           {!imgSrc && (
             <div style={styles.toolbar}>
               <div style={styles.toolGroup}>
@@ -912,6 +942,28 @@ const CameraCapture: React.FC = () => {
                   <option value="moustache">🧔</option>
                   <option value="dogears">🐶</option>
                 </select>
+                {/* NEW BUTTONS */}
+                <button
+                  style={{ ...styles.toolBtn }}
+                  onClick={() => setShowGallery(true)}
+                  title="Gallery"
+                >
+                  🖼️
+                </button>
+                <button
+                  style={{ ...styles.toolBtn }}
+                  onClick={() => setShowGifMaker(true)}
+                  title="GIF Maker"
+                >
+                  🎞️
+                </button>
+                <button
+                  style={{ ...styles.toolBtn }}
+                  onClick={() => setShowTimeLapse(true)}
+                  title="Time‑lapse"
+                >
+                  ⏱️
+                </button>
               </div>
             </div>
           )}
@@ -973,11 +1025,31 @@ const CameraCapture: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* === New Components === */}
+      <PhotoGallery
+        isOpen={showGallery}
+        onClose={() => setShowGallery(false)}
+      />
+      <GifMaker
+        images={capturedImages}
+        isOpen={showGifMaker}
+        onClose={() => setShowGifMaker(false)}
+      />
+      <TimeLapse
+        isOpen={showTimeLapse}
+        onClose={() => {
+          setShowTimeLapse(false);
+          setTimeLapseImages([]);
+        }}
+        onCapture={handleTimeLapseCapture}
+        // Optionally pass captured images for GIF maker later
+      />
     </div>
   );
 };
 
-// --- Styles (updated) ---
+// --- Styles (unchanged – same as before) ---
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
