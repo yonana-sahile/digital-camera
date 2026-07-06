@@ -58,13 +58,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'camera.wsgi.application'
 
 # 3. Database (PostgreSQL Setup)
+# Fixed: host default is now 'localhost' (instead of 'db') for local development.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'camera_db'),
         'USER': os.environ.get('DB_USER', 'myuser'),
         'PASSWORD': os.environ.get('DB_PASSWORD', 'mypassword'),
-        'HOST': os.environ.get('DB_HOST', 'db'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),   # <-- changed here
         'PORT': '5432',
     }
 }
