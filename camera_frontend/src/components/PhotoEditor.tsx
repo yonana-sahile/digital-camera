@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
+import ReactCrop from 'react-image-crop';
+import type { Crop, PixelCrop } from 'react-image-crop';  // <-- correct type import
 import 'react-image-crop/dist/ReactCrop.css';
 
 interface PhotoEditorProps {
   imageSrc: string;
   isOpen: boolean;
-  onClose: (editedImage?: string) => void; // passes edited image back if saved
+  onClose: (editedImage?: string) => void;
 }
 
 const PhotoEditor: React.FC<PhotoEditorProps> = ({ imageSrc, isOpen, onClose }) => {
@@ -21,9 +22,9 @@ const PhotoEditor: React.FC<PhotoEditorProps> = ({ imageSrc, isOpen, onClose }) 
   const [rotation, setRotation] = useState<number>(0);
   const [flipH, setFlipH] = useState<boolean>(false);
   const [flipV, setFlipV] = useState<boolean>(false);
-  const [brightness, setBrightness] = useState<number>(0); // -100 to 100
-  const [contrast, setContrast] = useState<number>(0); // -100 to 100
-  const [saturation, setSaturation] = useState<number>(0); // -100 to 100
+  const [brightness, setBrightness] = useState<number>(0);
+  const [contrast, setContrast] = useState<number>(0);
+  const [saturation, setSaturation] = useState<number>(0);
   const [previewUrl, setPreviewUrl] = useState<string>(imageSrc);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -35,7 +36,6 @@ const PhotoEditor: React.FC<PhotoEditorProps> = ({ imageSrc, isOpen, onClose }) 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Apply rotation
       let w = img.width;
       let h = img.height;
       if (rotation % 180 !== 0) {
@@ -45,37 +45,32 @@ const PhotoEditor: React.FC<PhotoEditorProps> = ({ imageSrc, isOpen, onClose }) 
       canvas.height = h;
       ctx.clearRect(0, 0, w, h);
 
-      // Translate to center, rotate, then draw
       ctx.translate(w / 2, h / 2);
       ctx.rotate((rotation * Math.PI) / 180);
-      // Flip
       ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
       ctx.drawImage(img, -img.width / 2, -img.height / 2, img.width, img.height);
 
-      // Apply brightness/contrast/saturation (using canvas filters)
+      // Apply brightness/contrast/saturation
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
-      const b = brightness / 100; // -1 to 1
-      const c = contrast / 100;   // -1 to 1
-      const s = saturation / 100; // -1 to 1
+      const b = brightness / 100;
+      const c = contrast / 100;
+      const s = saturation / 100;
       for (let i = 0; i < data.length; i += 4) {
         let r = data[i];
         let g = data[i + 1];
         let b2 = data[i + 2];
-        // Contrast
         if (c !== 0) {
           const factor = (259 * (c + 255)) / (255 * (259 - c));
           r = factor * (r - 128) + 128;
           g = factor * (g - 128) + 128;
           b2 = factor * (b2 - 128) + 128;
         }
-        // Brightness
         if (b !== 0) {
           r += b * 255;
           g += b * 255;
           b2 += b * 255;
         }
-        // Saturation (simple)
         if (s !== 0) {
           const gray = 0.299 * r + 0.587 * g + 0.114 * b2;
           r = gray + (r - gray) * (1 + s);
@@ -92,7 +87,6 @@ const PhotoEditor: React.FC<PhotoEditorProps> = ({ imageSrc, isOpen, onClose }) 
     img.src = imageSrc;
   }, [imageSrc, rotation, flipH, flipV, brightness, contrast, saturation]);
 
-  // Apply crop
   const applyCrop = () => {
     if (!completedCrop) return;
     const img = new Image();
@@ -114,12 +108,7 @@ const PhotoEditor: React.FC<PhotoEditorProps> = ({ imageSrc, isOpen, onClose }) 
         pixelCrop.width,
         pixelCrop.height
       );
-      // Also apply any existing adjustments? We'll re‑apply them after crop.
-      // But we can simply use the previewUrl which already has adjustments.
-      // Actually we can crop the adjusted image (previewUrl).
-      // We'll do that: load previewUrl, crop.
       const cropped = canvas.toDataURL('image/jpeg');
-      // Close and return cropped image
       onClose(cropped);
     };
     img.src = previewUrl;
