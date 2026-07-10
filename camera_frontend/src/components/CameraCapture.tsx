@@ -678,6 +678,27 @@ const CameraCapture: React.FC = () => {
           background: rgba(245, 87, 108, 0.2);
           border-color: #f5576c;
         }
+        .sidebar-btn {
+          background: rgba(255,255,255,0.05);
+          border: 2px solid transparent;
+          border-radius: 12px;
+          padding: 8px;
+          font-size: 22px;
+          cursor: pointer;
+          color: #ccc;
+          transition: all 0.2s;
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .sidebar-btn:hover {
+          background: rgba(255,255,255,0.1);
+        }
+        .sidebar-btn.active {
+          border-color: #f5576c;
+          background: rgba(245, 87, 108, 0.15);
+        }
       `}</style>
 
       {/* Notification */}
@@ -699,7 +720,7 @@ const CameraCapture: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Header (unchanged) */}
+      {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.title}>📷 AdwaShield</h1>
         <div style={styles.liveIndicator}>
@@ -708,30 +729,28 @@ const CameraCapture: React.FC = () => {
         </div>
       </div>
 
-      {/* Main area – toolbar + camera */}
+      {/* Main container: left sidebar + camera area */}
       <div style={styles.mainContainer}>
-        {/* HORIZONTAL TOOLBAR (inside bar) */}
-        <div style={styles.toolbar}>
-          <div style={styles.toolGroup}>
+        {/* LEFT SIDEBAR */}
+        <div style={styles.sidebar}>
+          {/* Capture modes */}
+          <div style={styles.sidebarGroup}>
             <button
-              className={`mode-btn ${mode === 'single' ? 'active' : ''}`}
-              style={styles.toolBtn}
+              className={`sidebar-btn ${mode === 'single' ? 'active' : ''}`}
               onClick={() => setMode('single')}
               title="Single"
             >
               📸
             </button>
             <button
-              className={`mode-btn ${mode === 'timer' ? 'active' : ''}`}
-              style={styles.toolBtn}
+              className={`sidebar-btn ${mode === 'timer' ? 'active' : ''}`}
               onClick={() => setMode('timer')}
               title="Timer"
             >
               ⏱️
             </button>
             <button
-              className={`mode-btn ${mode === 'burst' ? 'active' : ''}`}
-              style={styles.toolBtn}
+              className={`sidebar-btn ${mode === 'burst' ? 'active' : ''}`}
               onClick={() => setMode('burst')}
               title="Burst"
             >
@@ -739,39 +758,40 @@ const CameraCapture: React.FC = () => {
             </button>
           </div>
 
-          <div style={styles.toolDivider} />
+          <div style={styles.sidebarDivider} />
 
-          <div style={styles.toolGroup}>
+          {/* Feature toggles */}
+          <div style={styles.sidebarGroup}>
             <button
-              style={{ ...styles.toolBtn, backgroundColor: showFilters ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              className={`sidebar-btn ${showFilters ? 'active' : ''}`}
               onClick={() => setShowFilters(!showFilters)}
               title="Filters"
             >
               🎨
             </button>
             <button
-              style={styles.toolBtn}
+              className="sidebar-btn"
               onClick={() => setShowGallery(true)}
               title="Gallery"
             >
               🖼️
             </button>
             <button
-              style={styles.toolBtn}
+              className="sidebar-btn"
               onClick={() => setShowGifMaker(true)}
               title="GIF Maker"
             >
               🎞️
             </button>
             <button
-              style={styles.toolBtn}
+              className="sidebar-btn"
               onClick={() => setShowTimeLapse(true)}
               title="Time‑lapse"
             >
               ⏱️
             </button>
             <button
-              style={styles.toolBtn}
+              className="sidebar-btn"
               onClick={() => setShowSettings(true)}
               title="Settings"
             >
@@ -779,46 +799,47 @@ const CameraCapture: React.FC = () => {
             </button>
           </div>
 
-          <div style={styles.toolDivider} />
+          <div style={styles.sidebarDivider} />
 
-          <div style={styles.toolGroup}>
+          {/* AI & tools */}
+          <div style={styles.sidebarGroup}>
             <button
-              style={{ ...styles.toolBtn, backgroundColor: faceDetection ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              className={`sidebar-btn ${faceDetection ? 'active' : ''}`}
               onClick={() => setFaceDetection(!faceDetection)}
               title="Face Detection"
             >
               👤
             </button>
             <button
-              style={{ ...styles.toolBtn, backgroundColor: backgroundBlur ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              className={`sidebar-btn ${backgroundBlur ? 'active' : ''}`}
               onClick={() => setBackgroundBlur(!backgroundBlur)}
               title="Background Blur"
             >
               🌫️
             </button>
             <button
-              style={{ ...styles.toolBtn, backgroundColor: isListening ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              className={`sidebar-btn ${isListening ? 'active' : ''}`}
               onClick={() => setIsListening(!isListening)}
               title="Voice"
             >
               🎤
             </button>
             <button
-              style={{ ...styles.toolBtn, backgroundColor: autoEnhance ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              className={`sidebar-btn ${autoEnhance ? 'active' : ''}`}
               onClick={() => setAutoEnhance(!autoEnhance)}
               title="Auto‑Enhance"
             >
               ✨
             </button>
             <button
-              style={{ ...styles.toolBtn, backgroundColor: showHistogram ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              className={`sidebar-btn ${showHistogram ? 'active' : ''}`}
               onClick={() => setShowHistogram(!showHistogram)}
               title="Histogram"
             >
               📊
             </button>
             <button
-              style={{ ...styles.toolBtn, backgroundColor: showGrid ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              className={`sidebar-btn ${showGrid ? 'active' : ''}`}
               onClick={() => setShowGrid(!showGrid)}
               title="Grid"
             >
@@ -826,13 +847,14 @@ const CameraCapture: React.FC = () => {
             </button>
           </div>
 
-          <div style={styles.toolDivider} />
+          <div style={styles.sidebarDivider} />
 
-          <div style={styles.toolGroup}>
+          {/* Stickers & timer/burst options */}
+          <div style={styles.sidebarGroup}>
             <select
               value={selectedSticker}
               onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
-              style={styles.toolSelect}
+              style={styles.sidebarSelect}
               title="Stickers"
             >
               <option value="none">None</option>
@@ -845,7 +867,7 @@ const CameraCapture: React.FC = () => {
               <select
                 value={timerDelay}
                 onChange={(e) => setTimerDelay(Number(e.target.value))}
-                style={styles.toolSelect}
+                style={styles.sidebarSelect}
               >
                 <option value={3}>3s</option>
                 <option value={5}>5s</option>
@@ -856,7 +878,7 @@ const CameraCapture: React.FC = () => {
               <select
                 value={burstCount}
                 onChange={(e) => setBurstCount(Number(e.target.value))}
-                style={styles.toolSelect}
+                style={styles.sidebarSelect}
               >
                 <option value={3}>3 shots</option>
                 <option value={5}>5 shots</option>
@@ -866,126 +888,129 @@ const CameraCapture: React.FC = () => {
           </div>
         </div>
 
-        {/* Camera Preview – larger width */}
-        <motion.div
-          style={styles.webcamWrapper}
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div style={styles.cameraOverlay}>
-            <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
-            <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
-            <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
-            <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
-            <canvas
-              ref={canvasRef}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                pointerEvents: 'none',
-                zIndex: 5,
-              }}
-            />
-            {countdown !== null && (
-              <div style={styles.countdownOverlay}>
-                <span style={styles.countdownNumber}>{countdown}</span>
-              </div>
-            )}
-            {showHistogram && !imgSrc && histogramData.length > 0 && (
-              <div style={styles.histogramContainer}>
-                <canvas
-                  ref={(canvas) => {
-                    if (canvas) {
-                      const ctx = canvas.getContext('2d');
-                      if (ctx) {
-                        const width = canvas.width;
-                        const height = canvas.height;
-                        ctx.clearRect(0, 0, width, height);
-                        const max = Math.max(...histogramData);
-                        if (max > 0) {
-                          for (let i = 0; i < histogramData.length; i++) {
-                            const h = (histogramData[i] / max) * height;
-                            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                            ctx.fillRect(i * (width / 256), height - h, width / 256, h);
+        {/* CENTER – Camera and main controls */}
+        <div style={styles.centerArea}>
+          {/* Camera Preview – wider */}
+          <motion.div
+            style={styles.webcamWrapper}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div style={styles.cameraOverlay}>
+              <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
+              <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+              <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
+              <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+              <canvas
+                ref={canvasRef}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }}
+              />
+              {countdown !== null && (
+                <div style={styles.countdownOverlay}>
+                  <span style={styles.countdownNumber}>{countdown}</span>
+                </div>
+              )}
+              {showHistogram && !imgSrc && histogramData.length > 0 && (
+                <div style={styles.histogramContainer}>
+                  <canvas
+                    ref={(canvas) => {
+                      if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                          const width = canvas.width;
+                          const height = canvas.height;
+                          ctx.clearRect(0, 0, width, height);
+                          const max = Math.max(...histogramData);
+                          if (max > 0) {
+                            for (let i = 0; i < histogramData.length; i++) {
+                              const h = (histogramData[i] / max) * height;
+                              ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                              ctx.fillRect(i * (width / 256), height - h, width / 256, h);
+                            }
                           }
                         }
                       }
-                    }
-                  }}
-                  width={256}
-                  height={64}
-                  style={{ width: '100%', height: '100%' }}
-                />
-              </div>
+                    }}
+                    width={256}
+                    height={64}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {imgSrc ? (
+              <motion.img
+                src={imgSrc}
+                alt="captured"
+                style={styles.videoStream}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              />
+            ) : (
+              <Webcam
+                audio={false}
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                videoConstraints={videoConstraints}
+                style={{
+                  ...styles.videoStream,
+                  transform: 'scaleX(-1)',
+                  filter: filterStyles[activeFilter],
+                }}
+              />
+            )}
+          </motion.div>
+
+          {/* Controls – capture button and post‑capture actions */}
+          <div style={styles.controls}>
+            {!imgSrc ? (
+              <motion.button
+                onClick={startCaptureSequence}
+                disabled={isCapturing}
+                style={styles.captureBtn}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div style={styles.innerCaptureBtn} />
+              </motion.button>
+            ) : (
+              <motion.div style={styles.actionButtonGroup} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <button onClick={retake} style={styles.secondaryBtn}>⟲ Retake</button>
+                <button onClick={downloadImage} style={styles.secondaryBtn}>⬇ Download</button>
+                {navigator.share && <button onClick={shareImage} style={styles.secondaryBtn}>📤 Share</button>}
+                <button onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }} style={styles.secondaryBtn}>✏️ Edit</button>
+                <motion.button
+                  onClick={uploadPhoto}
+                  disabled={loading}
+                  style={styles.primaryBtn}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  {loading ? 'Syncing...' : '⬆ Upload'}
+                </motion.button>
+              </motion.div>
             )}
           </div>
 
-          {imgSrc ? (
-            <motion.img
-              src={imgSrc}
-              alt="captured"
-              style={styles.videoStream}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-            />
-          ) : (
-            <Webcam
-              audio={false}
-              ref={webcamRef}
-              screenshotFormat="image/jpeg"
-              videoConstraints={videoConstraints}
-              style={{
-                ...styles.videoStream,
-                transform: 'scaleX(-1)',
-                filter: filterStyles[activeFilter],
-              }}
-            />
+          {capturedImages.length > 1 && (
+            <div style={styles.burstPreviews}>
+              {capturedImages.map((img, idx) => <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />)}
+            </div>
           )}
-        </motion.div>
 
-        {/* Controls – capture button and post‑capture actions */}
-        <div style={styles.controls}>
-          {!imgSrc ? (
-            <motion.button
-              onClick={startCaptureSequence}
-              disabled={isCapturing}
-              style={styles.captureBtn}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <div style={styles.innerCaptureBtn} />
-            </motion.button>
-          ) : (
-            <motion.div style={styles.actionButtonGroup} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <button onClick={retake} style={styles.secondaryBtn}>⟲ Retake</button>
-              <button onClick={downloadImage} style={styles.secondaryBtn}>⬇ Download</button>
-              {navigator.share && <button onClick={shareImage} style={styles.secondaryBtn}>📤 Share</button>}
-              <button onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }} style={styles.secondaryBtn}>✏️ Edit</button>
-              <motion.button
-                onClick={uploadPhoto}
-                disabled={loading}
-                style={styles.primaryBtn}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                {loading ? 'Syncing...' : '⬆ Upload'}
-              </motion.button>
-            </motion.div>
-          )}
-        </div>
-
-        {capturedImages.length > 1 && (
-          <div style={styles.burstPreviews}>
-            {capturedImages.map((img, idx) => <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />)}
+          <div style={styles.keyHint}>
+            <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; 🎤: Voice</span>
           </div>
-        )}
-
-        <div style={styles.keyHint}>
-          <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; 🎤: Voice</span>
         </div>
       </div>
 
@@ -1113,7 +1138,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    maxWidth: '1100px',
+    maxWidth: '1200px',
     marginBottom: '15px',
     padding: '0 10px',
     zIndex: 5,
@@ -1152,57 +1177,60 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   mainContainer: {
     display: 'flex',
+    width: '100%',
+    maxWidth: '1200px',
+    gap: '20px',
+    position: 'relative',
+  },
+  // ---------- LEFT SIDEBAR ----------
+  sidebar: {
+    display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    width: '100%',
-    maxWidth: '1100px',
-    gap: '16px',
+    padding: '14px 10px',
+    background: 'rgba(20,20,20,0.7)',
+    backdropFilter: 'blur(20px)',
+    borderRadius: '20px',
+    border: '1px solid rgba(255,255,255,0.06)',
+    minWidth: '70px',
+    maxWidth: '70px',
+    gap: '8px',
+    height: 'fit-content',
+    position: 'sticky',
+    top: '80px',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
   },
-  // ---------- HORIZONTAL TOOLBAR ----------
-  toolbar: {
+  sidebarGroup: {
     display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '8px 16px',
-    background: 'rgba(255,255,255,0.04)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '16px',
-    border: '1px solid rgba(255,255,255,0.05)',
-    width: '100%',
-    gap: '6px 12px',
-  },
-  toolGroup: {
-    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     gap: '6px',
-    flexWrap: 'wrap',
+    width: '100%',
   },
-  toolDivider: {
-    width: '1px',
-    height: '30px',
+  sidebarDivider: {
+    width: '70%',
+    height: '1px',
     background: 'rgba(255,255,255,0.08)',
+    margin: '6px 0',
   },
-  toolBtn: {
-    background: 'transparent',
-    border: '2px solid transparent',
-    borderRadius: '10px',
-    padding: '6px 10px',
-    fontSize: '18px',
-    cursor: 'pointer',
-    color: '#ccc',
-    transition: 'all 0.2s',
-  },
-  toolSelect: {
+  sidebarSelect: {
     background: 'rgba(255,255,255,0.08)',
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: '8px',
-    padding: '4px 8px',
+    padding: '4px 6px',
     color: 'white',
-    fontSize: '13px',
+    fontSize: '12px',
     cursor: 'pointer',
+    width: '100%',
   },
-  // ---------- CAMERA ----------
+  // ---------- CENTER AREA ----------
+  centerArea: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '100%',
+  },
   webcamWrapper: {
     position: 'relative',
     width: '100%',
@@ -1262,9 +1290,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '4px',
     zIndex: 15,
   },
-  // ---------- CONTROLS ----------
   controls: {
-    marginTop: '16px',
+    marginTop: '20px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
