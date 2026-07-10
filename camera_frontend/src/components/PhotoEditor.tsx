@@ -1,68 +1,64 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import ReactCrop from 'react-image-crop';
-import type { Crop, PixelCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Undo2, Redo2, X, Eye, Wand2, RotateCw, FlipHorizontal, FlipVertical,
+  Crop as CropIcon, SlidersHorizontal, Palette, Sparkles, Type as TypeIcon,
+  Smile, Download, Trash2, Plus, Sun, Moon,
+} from 'lucide-react';
 
-// ---------- TYPES ----------
-interface PhotoEditorProps {
-  imageSrc: string;
-  isOpen: boolean;
-  onClose: (editedImage?: string) => void;
-}
+// =====================================================================
+// CONSTANTS
+// =====================================================================
+const STICKERS = ['😊', '😂', '❤️', '👍', '🎉', '🌟', '🔥', '💡', '🐶', '🐱', '✨', '🎈', '🍕', '🚀', '🌈', '💯'];
 
-type TextPosition = 'top-left' | 'top-center' | 'top-right' | 'center' | 'bottom-left' | 'bottom-center' | 'bottom-right';
-
-interface TextLayer {
-  id: string;
-  text: string;
-  fontSize: number;
-  color: string;
-  position: TextPosition;
-  outlineColor: string;
-  outlineWidth: number;
-  shadowBlur: number;
-  shadowColor: string;
-}
-
-interface Sticker {
-  id: string;
-  emoji: string;
-  size: number;
-  x: number;
-  y: number;
-}
-
-type ToolTab = 'adjust' | 'filters' | 'effects' | 'text' | 'stickers';
-
-// ---------- CONSTANTS ----------
-const stickerOptions = ['😊', '😂', '❤️', '👍', '🎉', '🌟', '🔥', '💡', '🐶', '🐱', '✨', '🎈', '🍕', '🚀', '🌈'];
-const filterPresets = [
-  { name: 'Original', values: {} },
-  { name: 'Vivid', values: { saturation: 30, vibrance: 40, contrast: 10 } },
-  { name: 'Warm', values: { temperature: 40, tint: 10 } },
-  { name: 'Cool', values: { temperature: -40, tint: -10 } },
-  { name: 'Dramatic', values: { contrast: 40, highlights: -20, shadows: -20, sharpness: 30, vibrance: 20 } },
-  { name: 'B&W', values: { saturation: -100 } },
-  { name: 'Film', values: { saturation: -20, contrast: 20, vignette: 30, grain: 0.15 } },
-  { name: 'Retro', values: { temperature: 20, tint: 20, vignette: 40, grain: 0.25 } },
-  { name: 'Cinematic', values: { contrast: 30, highlights: -15, shadows: 15, temperature: -10, vibrance: 20 } },
-  { name: 'Sunset', values: { temperature: 50, tint: 20, vibrance: 30, highlights: -10 } },
+const FILTERS = [
+  { name: 'Original', swatch: ['#8a8a8a', '#c9c9c9'], values: {} },
+  { name: 'Vivid', swatch: ['#ff5e62', '#ffb347'], values: { saturation: 30, vibrance: 40, contrast: 10 } },
+  { name: 'Warm', swatch: ['#ff9966', '#ffcc99'], values: { temperature: 40, tint: 10 } },
+  { name: 'Cool', swatch: ['#4facfe', '#00f2fe'], values: { temperature: -40, tint: -10 } },
+  { name: 'Dramatic', swatch: ['#232526', '#8e9eab'], values: { contrast: 40, highlights: -20, shadows: -20, sharpness: 30, vibrance: 20 } },
+  { name: 'Noir', swatch: ['#141414', '#a9a9a9'], values: { saturation: -100, contrast: 15 } },
+  { name: 'Film', swatch: ['#7b6a5e', '#c9b89b'], values: { saturation: -20, contrast: 20, vignette: 30, grain: 0.15 } },
+  { name: 'Retro', swatch: ['#e0a96d', '#7b5b47'], values: { temperature: 20, tint: 20, vignette: 40, grain: 0.25 } },
+  { name: 'Cinema', swatch: ['#0f2027', '#2c5364'], values: { contrast: 30, highlights: -15, shadows: 15, temperature: -10, vibrance: 20 } },
+  { name: 'Sunset', swatch: ['#ff5f6d', '#ffc371'], values: { temperature: 50, tint: 20, vibrance: 30, highlights: -10 } },
 ];
 
-// ---------- COMPONENT ----------
-const PhotoEditor: React.FC<PhotoEditorProps> = ({ imageSrc, isOpen, onClose }) => {
-  // ---------- CROP ----------
-  const [crop, setCrop] = useState<Crop>({ unit: '%', x: 0, y: 0, width: 100, height: 100 });
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
-  const [aspect, setAspect] = useState<number | undefined>(undefined);
+const ASPECTS = [
+  { label: 'Free', value: null },
+  { label: '1:1', value: 1 },
+  { label: '4:3', value: 4 / 3 },
+  { label: '16:9', value: 16 / 9 },
+  { label: '9:16', value: 9 / 16 },
+];
 
-  // ---------- TRANSFORM ----------
+const TABS = [
+  { id: 'adjust', label: 'Adjust', icon: SlidersHorizontal },
+  { id: 'crop', label: 'Crop', icon: CropIcon },
+  { id: 'filters', label: 'Filters', icon: Palette },
+  { id: 'effects', label: 'Effects', icon: Sparkles },
+  { id: 'text', label: 'Text', icon: TypeIcon },
+  { id: 'stickers', label: 'Stickers', icon: Smile },
+];
+
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+// =====================================================================
+// COMPONENT
+// =====================================================================
+export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
+  // ---- crop (percentages of displayed image) ----
+  const [cropRect, setCropRect] = useState({ x: 0, y: 0, width: 100, height: 100 });
+  const [aspect, setAspect] = useState(null);
+  const cropDrag = useRef(null);
+  const imgWrapRef = useRef(null);
+  const imgElRef = useRef(null);
+
+  // ---- transform ----
   const [rotation, setRotation] = useState(0);
   const [flipH, setFlipH] = useState(false);
   const [flipV, setFlipV] = useState(false);
 
-  // ---------- ADJUSTMENTS ----------
+  // ---- adjustments ----
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
@@ -74,775 +70,827 @@ const PhotoEditor: React.FC<PhotoEditorProps> = ({ imageSrc, isOpen, onClose }) 
   const [sharpness, setSharpness] = useState(0);
   const [vibrance, setVibrance] = useState(0);
 
-  // ---------- EFFECTS ----------
+  // ---- effects ----
   const [vignette, setVignette] = useState(0);
   const [grain, setGrain] = useState(0);
-  const [tiltShift, setTiltShift] = useState(0); // 0=off, 1=max blur
+  const [tiltShift, setTiltShift] = useState(0);
   const [skinSmoothing, setSkinSmoothing] = useState(0);
 
-  // ---------- TEXT & STICKERS ----------
-  const [textLayers, setTextLayers] = useState<TextLayer[]>([]);
-  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
-  const [stickers, setStickers] = useState<Sticker[]>([]);
+  // ---- text & stickers ----
+  const [textLayers, setTextLayers] = useState([]);
+  const [stickers, setStickers] = useState([]);
   const [selectedSticker, setSelectedSticker] = useState('😊');
 
-  // ---------- UNDO/REDO ----------
-  const [history, setHistory] = useState<any[]>([]);
+  // ---- history ----
+  const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [isUndoRedo, setIsUndoRedo] = useState(false);
+  const isUndoRedo = useRef(false);
 
-  // ---------- UI STATE ----------
-  const [activeTab, setActiveTab] = useState<ToolTab>('adjust');
-  const [showOriginal, setShowOriginal] = useState(false);
+  // ---- ui ----
+  const [activeTab, setActiveTab] = useState('adjust');
+  const [comparePos, setComparePos] = useState(100); // 100 = fully edited, 0 = fully original
   const [previewUrl, setPreviewUrl] = useState(imageSrc);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [histogram, setHistogram] = useState(null);
+  const [dark, setDark] = useState(true);
 
-  // ---------- SAVE STATE SNAPSHOT ----------
   const currentState = {
     rotation, flipH, flipV,
     brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance,
     vignette, grain, tiltShift, skinSmoothing,
-    textLayers: textLayers.map(l => ({ ...l })),
-    stickers: stickers.map(s => ({ ...s })),
+    textLayers: textLayers.map((l) => ({ ...l })),
+    stickers: stickers.map((s) => ({ ...s })),
   };
 
   useEffect(() => {
-    if (!isUndoRedo) {
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(currentState);
-      if (newHistory.length > 50) newHistory.shift();
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
+    if (!isUndoRedo.current) {
+      const next = history.slice(0, historyIndex + 1);
+      next.push(currentState);
+      if (next.length > 50) next.shift();
+      setHistory(next);
+      setHistoryIndex(next.length - 1);
     }
-    setIsUndoRedo(false);
-  }, [
-    rotation, flipH, flipV,
-    brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance,
-    vignette, grain, tiltShift, skinSmoothing,
-    textLayers, stickers,
-  ]);
+    isUndoRedo.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rotation, flipH, flipV, brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance, vignette, grain, tiltShift, skinSmoothing, textLayers, stickers]);
+
+  const applyState = (s) => {
+    setRotation(s.rotation); setFlipH(s.flipH); setFlipV(s.flipV);
+    setBrightness(s.brightness); setContrast(s.contrast); setSaturation(s.saturation);
+    setExposure(s.exposure); setHighlights(s.highlights); setShadows(s.shadows);
+    setTemperature(s.temperature); setTint(s.tint); setSharpness(s.sharpness); setVibrance(s.vibrance);
+    setVignette(s.vignette); setGrain(s.grain); setTiltShift(s.tiltShift); setSkinSmoothing(s.skinSmoothing);
+    setTextLayers(s.textLayers.map((l) => ({ ...l })));
+    setStickers(s.stickers.map((st) => ({ ...st })));
+  };
 
   const undo = () => {
     if (historyIndex > 0) {
-      setIsUndoRedo(true);
-      const prev = history[historyIndex - 1];
+      isUndoRedo.current = true;
       setHistoryIndex(historyIndex - 1);
-      applyState(prev);
+      applyState(history[historyIndex - 1]);
     }
   };
-
   const redo = () => {
     if (historyIndex < history.length - 1) {
-      setIsUndoRedo(true);
-      const next = history[historyIndex + 1];
+      isUndoRedo.current = true;
       setHistoryIndex(historyIndex + 1);
-      applyState(next);
+      applyState(history[historyIndex + 1]);
     }
   };
 
-  const applyState = (state: any) => {
-    setRotation(state.rotation);
-    setFlipH(state.flipH);
-    setFlipV(state.flipV);
-    setBrightness(state.brightness);
-    setContrast(state.contrast);
-    setSaturation(state.saturation);
-    setExposure(state.exposure);
-    setHighlights(state.highlights);
-    setShadows(state.shadows);
-    setTemperature(state.temperature);
-    setTint(state.tint);
-    setSharpness(state.sharpness);
-    setVibrance(state.vibrance);
-    setVignette(state.vignette);
-    setGrain(state.grain);
-    setTiltShift(state.tiltShift);
-    setSkinSmoothing(state.skinSmoothing);
-    setTextLayers(state.textLayers.map((l: TextLayer) => ({ ...l })));
-    setStickers(state.stickers.map((s: Sticker) => ({ ...s })));
+  const resetAll = () => {
+    setBrightness(0); setContrast(0); setSaturation(0); setExposure(0);
+    setHighlights(0); setShadows(0); setTemperature(0); setTint(0);
+    setVibrance(0); setSharpness(0); setVignette(0); setGrain(0);
+    setTiltShift(0); setSkinSmoothing(0);
   };
 
-  // ---------- AUTO-ENHANCE ----------
   const autoEnhance = () => {
-    // Simple auto-levels + slight saturation boost
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      let minR = 255, maxR = 0, minG = 255, maxG = 0, minB = 255, maxB = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i] < minR) minR = data[i];
-        if (data[i] > maxR) maxR = data[i];
-        if (data[i+1] < minG) minG = data[i+1];
-        if (data[i+1] > maxG) maxG = data[i+1];
-        if (data[i+2] < minB) minB = data[i+2];
-        if (data[i+2] > maxB) maxB = data[i+2];
-      }
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = ((data[i] - minR) / (maxR - minR || 1)) * 255;
-        data[i+1] = ((data[i+1] - minG) / (maxG - minG || 1)) * 255;
-        data[i+2] = ((data[i+2] - minB) / (maxB - minB || 1)) * 255;
-      }
-      ctx.putImageData(imageData, 0, 0);
-      const enhanced = canvas.toDataURL('image/jpeg');
-      // apply a slight saturation and contrast automatically
-      setContrast(15);
-      setSaturation(20);
-      setImageSource(enhanced);
-    };
-    img.src = imageSrc;
+    setBrightness(6); setContrast(14); setSaturation(16);
+    setExposure(4); setVibrance(12); setSharpness(10);
   };
 
-  const setImageSource = (src: string) => {
-    // This will trigger preview update; for autoEnhance we just set the source but keep current adjustments.
-    // We'll simply replace imageSrc in memory – but imageSrc is a prop, so we'll need to pass a new callback.
-    // Instead, we'll reload the image and keep the current adjustments. This function isn't used, so let's remove autoEnhance button unless we implement properly.
-    // Alternative: autoEnhance just applies some preset values to the sliders.
-    setBrightness(5);
-    setContrast(15);
-    setSaturation(20);
-    setExposure(5);
-    setVibrance(10);
-    setSharpness(10);
-  };
-
-  // ---------- APPLY EFFECTS TO PREVIEW ----------
+  // ---------------------------------------------------------------
+  // RENDER PREVIEW (canvas pipeline)
+  // ---------------------------------------------------------------
   useEffect(() => {
     const img = new Image();
     img.onload = () => {
+      let w = img.width, h = img.height;
+      if (rotation % 180 !== 0) [w, h] = [h, w];
       const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      let w = img.width;
-      let h = img.height;
-      if (rotation % 180 !== 0) [w, h] = [h, w];
-      canvas.width = w;
-      canvas.height = h;
-      ctx.clearRect(0, 0, w, h);
-
-      // Transform
       ctx.save();
       ctx.translate(w / 2, h / 2);
       ctx.rotate((rotation * Math.PI) / 180);
-      ctx.scale(flipH ? -1 : 1, flipV ? 1 : -1);
+      ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
       ctx.drawImage(img, -img.width / 2, -img.height / 2, img.width, img.height);
       ctx.restore();
 
-      // Pixel adjustments
-      let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      imageData = applyPixelAdjustments(imageData);
+      let imageData = ctx.getImageData(0, 0, w, h);
+      imageData = applyPixelAdjustments(imageData, {
+        brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, vibrance, sharpness,
+      });
       ctx.putImageData(imageData, 0, 0);
 
-      // Skin smoothing (simple bilateral approximation)
       if (skinSmoothing > 0) {
-        const smoothed = applySkinSmoothing(ctx, canvas.width, canvas.height, skinSmoothing);
+        const smoothed = applySkinSmoothing(ctx, w, h, skinSmoothing);
         ctx.putImageData(smoothed, 0, 0);
       }
+      if (vignette > 0) applyVignette(ctx, w, h, vignette);
+      if (tiltShift > 0) applyTiltShift(ctx, w, h, tiltShift);
+      if (grain > 0) applyGrain(ctx, w, h, grain);
 
-      // Vignette
-      if (vignette > 0) {
-        applyVignette(ctx, canvas.width, canvas.height, vignette);
-      }
-
-      // Tilt-shift blur
-      if (tiltShift > 0) {
-        applyTiltShift(ctx, canvas.width, canvas.height, tiltShift);
-      }
-
-      // Film grain
-      if (grain > 0) {
-        applyGrain(ctx, canvas.width, canvas.height, grain);
-      }
-
-      // Text layers
-      textLayers.forEach(layer => {
-        drawTextLayer(ctx, canvas.width, canvas.height, layer);
-      });
-
-      // Stickers
-      stickers.forEach(s => {
+      textLayers.forEach((layer) => drawTextLayer(ctx, w, h, layer));
+      stickers.forEach((s) => {
         ctx.save();
         ctx.font = `${s.size}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.fillText(s.emoji, s.x, s.y);
         ctx.restore();
       });
 
-      setPreviewUrl(canvas.toDataURL('image/jpeg'));
+      setHistogram(computeHistogram(ctx, w, h));
+      setPreviewUrl(canvas.toDataURL('image/jpeg', 0.92));
     };
     img.src = imageSrc;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageSrc, rotation, flipH, flipV, brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance, vignette, grain, tiltShift, skinSmoothing, textLayers, stickers]);
 
-  // ---------- HELPERS ----------
-  const applyPixelAdjustments = (imageData: ImageData): ImageData => {
-    const data = imageData.data;
-    const exposureFactor = Math.pow(2, exposure / 100);
-    const tempR = 1 + temperature / 200;
-    const tempB = 1 - temperature / 200;
-    const tintG = 1 + tint / 200;
-    const tintRB = 1 + tint / 200; // simplified
-
-    for (let i = 0; i < data.length; i += 4) {
-      let r = data[i], g = data[i+1], b = data[i+2];
-
-      // Brightness
-      r += (brightness / 100) * 255;
-      g += (brightness / 100) * 255;
-      b += (brightness / 100) * 255;
-
-      // Contrast
-      if (contrast !== 0) {
-        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-        r = factor * (r - 128) + 128;
-        g = factor * (g - 128) + 128;
-        b = factor * (b - 128) + 128;
-      }
-
-      // Exposure
-      r *= exposureFactor;
-      g *= exposureFactor;
-      b *= exposureFactor;
-
-      // Temperature
-      r *= tempR;
-      b *= tempB;
-
-      // Tint
-      if (tint >= 0) {
-        g *= tintG;
-      } else {
-        r *= tintRB;
-        b *= tintRB;
-      }
-
-      // Shadows/Highlights
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      if (shadows !== 0) {
-        const t = Math.max(0, 1 - lum / 128);
-        const factor = 1 + (shadows / 100) * t;
-        r *= factor; g *= factor; b *= factor;
-      }
-      if (highlights !== 0) {
-        const t = Math.max(0, lum / 128 - 1);
-        const factor = 1 - (highlights / 100) * t;
-        r *= factor; g *= factor; b *= factor;
-      }
-
-      // Saturation
-      if (saturation !== 0) {
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        const s = saturation / 100;
-        r = gray + (r - gray) * (1 + s);
-        g = gray + (g - gray) * (1 + s);
-        b = gray + (b - gray) * (1 + s);
-      }
-
-      // Vibrance
-      if (vibrance !== 0) {
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        const maxC = Math.max(r, g, b);
-        const minC = Math.min(r, g, b);
-        const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
-        const vib = vibrance / 100;
-        const scale = 1 + vib * (1 - sat);
-        r = gray + (r - gray) * scale;
-        g = gray + (g - gray) * scale;
-        b = gray + (b - gray) * scale;
-      }
-
-      // Sharpness (applied later via convolution)
-      data[i] = Math.max(0, Math.min(255, r));
-      data[i+1] = Math.max(0, Math.min(255, g));
-      data[i+2] = Math.max(0, Math.min(255, b));
-    }
-
-    if (sharpness !== 0) {
-      applySharpen(imageData, sharpness / 100);
-    }
-    return imageData;
-  };
-
-  const applySharpen = (imageData: ImageData, amount: number) => {
-    const data = imageData.data;
-    const width = imageData.width;
-    const height = imageData.height;
-    const copy = new Uint8ClampedArray(data);
-    const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0];
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
-        for (let c = 0; c < 3; c++) {
-          let val = 0;
-          for (let ky = -1; ky <= 1; ky++) {
-            for (let kx = -1; kx <= 1; kx++) {
-              const idx = ((y + ky) * width + (x + kx)) * 4 + c;
-              val += copy[idx] * kernel[(ky + 1) * 3 + (kx + 1)];
-            }
-          }
-          const idx = (y * width + x) * 4 + c;
-          data[idx] = Math.max(0, Math.min(255, copy[idx] + amount * (val - copy[idx])));
-        }
-      }
-    }
-  };
-
-  const applyVignette = (ctx: CanvasRenderingContext2D, w: number, h: number, intensity: number) => {
-    const gradient = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w, h)/1.5);
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(1, `rgba(0,0,0,${intensity/100})`);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, w, h);
-  };
-
-  const applyTiltShift = (ctx: CanvasRenderingContext2D, w: number, h: number, intensity: number) => {
-    const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(0.4, 'rgba(0,0,0,0)');
-    gradient.addColorStop(0.5, `rgba(255,255,255,${intensity/100})`);
-    gradient.addColorStop(0.6, 'rgba(0,0,0,0)');
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, w, h);
-  };
-
-  const applyGrain = (ctx: CanvasRenderingContext2D, w: number, h: number, amount: number) => {
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    for (let i = 0; i < data.length; i += 4) {
-      const noise = (Math.random() - 0.5) * 255 * amount;
-      data[i] = Math.max(0, Math.min(255, data[i] + noise));
-      data[i+1] = Math.max(0, Math.min(255, data[i+1] + noise));
-      data[i+2] = Math.max(0, Math.min(255, data[i+2] + noise));
-    }
-    ctx.putImageData(imageData, 0, 0);
-  };
-
-  const applySkinSmoothing = (ctx: CanvasRenderingContext2D, w: number, h: number, intensity: number): ImageData => {
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    const radius = Math.floor(intensity * 2); // smoothing radius proportional to intensity
-    if (radius < 1) return imageData;
-    const copy = new Uint8ClampedArray(data);
-    for (let y = radius; y < h - radius; y++) {
-      for (let x = radius; x < w - radius; x++) {
-        const idx = (y * w + x) * 4;
-        // Simplified skin detection: check if pixel is skin-like (warm hue)
-        const r = data[idx], g = data[idx+1], b = data[idx+2];
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const isSkin = (r > 95 && g > 40 && b > 20 && max - min > 15 && Math.abs(r - g) > 15 && r > g && r > b);
-        if (isSkin) {
-          // Average with neighbours
-          let sr = 0, sg = 0, sb = 0, count = 0;
-          for (let dy = -radius; dy <= radius; dy++) {
-            for (let dx = -radius; dx <= radius; dx++) {
-              const nidx = ((y + dy) * w + (x + dx)) * 4;
-              sr += copy[nidx];
-              sg += copy[nidx+1];
-              sb += copy[nidx+2];
-              count++;
-            }
-          }
-          data[idx] = sr / count;
-          data[idx+1] = sg / count;
-          data[idx+2] = sb / count;
-        }
-      }
-    }
-    return imageData;
-  };
-
-  const drawTextLayer = (ctx: CanvasRenderingContext2D, w: number, h: number, layer: TextLayer) => {
-    ctx.save();
-    const fontSize = layer.fontSize;
-    ctx.font = `bold ${fontSize}px Impact, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const margin = 20;
-    let x = w / 2, y = h / 2;
-    switch (layer.position) {
-      case 'top-left': x = margin; y = fontSize / 2 + margin; ctx.textAlign = 'left'; break;
-      case 'top-center': x = w / 2; y = fontSize / 2 + margin; break;
-      case 'top-right': x = w - margin; y = fontSize / 2 + margin; ctx.textAlign = 'right'; break;
-      case 'bottom-left': x = margin; y = h - fontSize / 2 - margin; ctx.textAlign = 'left'; break;
-      case 'bottom-center': x = w / 2; y = h - fontSize / 2 - margin; break;
-      case 'bottom-right': x = w - margin; y = h - fontSize / 2 - margin; ctx.textAlign = 'right'; break;
-    }
-    // Shadow
-    if (layer.shadowBlur > 0) {
-      ctx.shadowColor = layer.shadowColor;
-      ctx.shadowBlur = layer.shadowBlur;
-    }
-    // Outline
-    if (layer.outlineWidth > 0) {
-      ctx.strokeStyle = layer.outlineColor;
-      ctx.lineWidth = layer.outlineWidth;
-      ctx.strokeText(layer.text, x, y);
-    }
-    ctx.fillStyle = layer.color;
-    ctx.fillText(layer.text, x, y);
-    ctx.restore();
-  };
-
-  // ---------- STICKER / TEXT HANDLERS ----------
+  // ---------------------------------------------------------------
+  // TEXT & STICKER HANDLERS
+  // ---------------------------------------------------------------
   const addTextLayer = () => {
-    const newLayer: TextLayer = {
-      id: Date.now().toString(),
-      text: 'Your Text',
-      fontSize: 64,
-      color: '#ffffff',
-      position: 'center',
-      outlineColor: '#000000',
-      outlineWidth: 4,
-      shadowBlur: 10,
-      shadowColor: 'rgba(0,0,0,0.8)',
+    const layer = {
+      id: Date.now().toString(), text: 'Your text', fontSize: 64, color: '#ffffff',
+      position: 'center', outlineColor: '#000000', outlineWidth: 4, shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.8)',
     };
-    setTextLayers([...textLayers, newLayer]);
-    setSelectedTextId(newLayer.id);
+    setTextLayers([...textLayers, layer]);
   };
-
-  const updateTextLayer = (id: string, updates: Partial<TextLayer>) => {
-    setTextLayers(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
-  };
-
-  const removeTextLayer = (id: string) => {
-    setTextLayers(prev => prev.filter(l => l.id !== id));
-    if (selectedTextId === id) setSelectedTextId(null);
-  };
+  const updateTextLayer = (id, updates) => setTextLayers((p) => p.map((l) => (l.id === id ? { ...l, ...updates } : l)));
+  const removeTextLayer = (id) => setTextLayers((p) => p.filter((l) => l.id !== id));
 
   const addSticker = () => {
-    const newSticker: Sticker = {
-      id: Date.now().toString(),
-      emoji: selectedSticker,
-      size: 100,
-      x: 200,
-      y: 200,
-    };
-    setStickers([...stickers, newSticker]);
+    setStickers([...stickers, { id: Date.now().toString(), emoji: selectedSticker, size: 100, x: 200, y: 200 }]);
+  };
+  const removeSticker = (id) => setStickers((p) => p.filter((s) => s.id !== id));
+
+  // ---------------------------------------------------------------
+  // CROP OVERLAY — pointer handling
+  // ---------------------------------------------------------------
+  const setAspectRect = (a) => {
+    setAspect(a);
+    if (!a) return;
+    const el = imgElRef.current;
+    if (!el) return;
+    const dispW = el.clientWidth, dispH = el.clientHeight;
+    const targetRatio = a;
+    let w, h;
+    if (dispW / dispH > targetRatio) { h = dispH; w = h * targetRatio; }
+    else { w = dispW; h = w / targetRatio; }
+    const wPct = (w / dispW) * 100, hPct = (h / dispH) * 100;
+    setCropRect({ x: (100 - wPct) / 2, y: (100 - hPct) / 2, width: wPct, height: hPct });
   };
 
-  const removeSticker = (id: string) => {
-    setStickers(prev => prev.filter(s => s.id !== id));
+  const onCropPointerDown = (e, mode, corner) => {
+    e.stopPropagation();
+    const bounds = imgWrapRef.current.getBoundingClientRect();
+    cropDrag.current = { mode, corner, startX: e.clientX, startY: e.clientY, startRect: { ...cropRect }, bounds };
+    window.addEventListener('pointermove', onCropPointerMove);
+    window.addEventListener('pointerup', onCropPointerUp);
   };
-
-  // ---------- CROP & SAVE ----------
-  const applyCropAndSave = () => {
-    if (!completedCrop) {
-      // No crop, just return preview
-      onClose(previewUrl);
-      return;
+  const onCropPointerMove = (e) => {
+    const d = cropDrag.current;
+    if (!d) return;
+    const dxPct = ((e.clientX - d.startX) / d.bounds.width) * 100;
+    const dyPct = ((e.clientY - d.startY) / d.bounds.height) * 100;
+    let r = { ...d.startRect };
+    if (d.mode === 'move') {
+      r.x = clamp(d.startRect.x + dxPct, 0, 100 - r.width);
+      r.y = clamp(d.startRect.y + dyPct, 0, 100 - r.height);
+    } else if (d.mode === 'resize') {
+      const c = d.corner;
+      if (c.includes('e')) r.width = clamp(d.startRect.width + dxPct, 5, 100 - r.x);
+      if (c.includes('s')) r.height = clamp(d.startRect.height + dyPct, 5, 100 - r.y);
+      if (c.includes('w')) {
+        const newX = clamp(d.startRect.x + dxPct, 0, d.startRect.x + d.startRect.width - 5);
+        r.width = d.startRect.width + (d.startRect.x - newX);
+        r.x = newX;
+      }
+      if (c.includes('n')) {
+        const newY = clamp(d.startRect.y + dyPct, 0, d.startRect.y + d.startRect.height - 5);
+        r.height = d.startRect.height + (d.startRect.y - newY);
+        r.y = newY;
+      }
+      if (aspect) {
+        r.height = r.width / aspect;
+        if (r.y + r.height > 100) r.height = 100 - r.y;
+      }
     }
+    setCropRect(r);
+  };
+  const onCropPointerUp = () => {
+    cropDrag.current = null;
+    window.removeEventListener('pointermove', onCropPointerMove);
+    window.removeEventListener('pointerup', onCropPointerUp);
+  };
+
+  // ---------------------------------------------------------------
+  // SAVE
+  // ---------------------------------------------------------------
+  const applyCropAndSave = () => {
+    const isFullCrop = cropRect.x === 0 && cropRect.y === 0 && cropRect.width === 100 && cropRect.height === 100;
+    if (isFullCrop) { onClose(previewUrl); return; }
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d')!;
-      const { x, y, width, height } = completedCrop;
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(img, x, y, width, height, 0, 0, width, height);
-      onClose(canvas.toDataURL('image/jpeg'));
+      const ctx = canvas.getContext('2d');
+      const x = (cropRect.x / 100) * img.width;
+      const y = (cropRect.y / 100) * img.height;
+      const w = (cropRect.width / 100) * img.width;
+      const h = (cropRect.height / 100) * img.height;
+      canvas.width = w; canvas.height = h;
+      ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+      onClose(canvas.toDataURL('image/jpeg', 0.95));
     };
     img.src = previewUrl;
   };
+  const handleClose = (save) => (save ? applyCropAndSave() : onClose());
 
-  const handleClose = (save: boolean) => {
-    if (save) applyCropAndSave();
-    else onClose();
+  // ---------------------------------------------------------------
+  // COMPARE SLIDER DRAG
+  // ---------------------------------------------------------------
+  const compareDrag = useRef(false);
+  const onCompareDown = () => { compareDrag.current = true; window.addEventListener('pointermove', onCompareMove); window.addEventListener('pointerup', onCompareUp); };
+  const onCompareMove = (e) => {
+    if (!compareDrag.current || !imgWrapRef.current) return;
+    const b = imgWrapRef.current.getBoundingClientRect();
+    setComparePos(clamp(((e.clientX - b.left) / b.width) * 100, 0, 100));
   };
+  const onCompareUp = () => { compareDrag.current = false; window.removeEventListener('pointermove', onCompareMove); window.removeEventListener('pointerup', onCompareUp); };
 
-  // ---------- RENDER ----------
   if (!isOpen) return null;
 
   return (
-    <div style={styles.overlay}>
-      <motion.div style={styles.modal}
-        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}>
-        {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.headerLeft}>
-            <button onClick={undo} disabled={historyIndex <= 0} style={styles.headerBtn}>↩</button>
-            <button onClick={redo} disabled={historyIndex >= history.length - 1} style={styles.headerBtn}>↪</button>
-            <span style={styles.headerTitle}>Editor</span>
-          </div>
-          <div style={styles.headerRight}>
-            <button
-              onMouseDown={() => setShowOriginal(true)}
-              onMouseUp={() => setShowOriginal(false)}
-              onMouseLeave={() => setShowOriginal(false)}
-              style={styles.headerBtn}
-              title="Hold to see original"
-            >👁️ Original</button>
-            <button onClick={() => handleClose(false)} style={styles.closeBtn}>✕</button>
-          </div>
-        </div>
-
-        {/* Main: Preview + Tool Tabs */}
-        <div style={styles.mainContainer}>
-          <div style={styles.previewSection}>
-            <div style={styles.cropContainer}>
-              <ReactCrop crop={crop} onChange={setCrop} onComplete={setCompletedCrop} aspect={aspect}>
-                <img src={showOriginal ? imageSrc : previewUrl} alt="Edit" style={styles.previewImage} />
-              </ReactCrop>
+    <div className={`pe-root ${dark ? 'pe-dark' : 'pe-light'}`}>
+      <style>{CSS}</style>
+      <div className="pe-overlay">
+        <div className="pe-modal">
+          {/* ---------------- HEADER ---------------- */}
+          <header className="pe-header">
+            <div className="pe-header-left">
+              <div className="pe-brand">
+                <span className="pe-sprocket" />
+                <span className="pe-sprocket" />
+                <span className="pe-brand-text">Editor</span>
+              </div>
+              <div className="pe-divider" />
+              <button className="pe-icon-btn" onClick={undo} disabled={historyIndex <= 0} title="Undo"><Undo2 size={16} /></button>
+              <button className="pe-icon-btn" onClick={redo} disabled={historyIndex >= history.length - 1} title="Redo"><Redo2 size={16} /></button>
+              <button className="pe-icon-btn" onClick={resetAll} title="Reset adjustments">Reset</button>
             </div>
-          </div>
-
-          {/* Tool Panel */}
-          <div style={styles.toolPanel}>
-            {/* Tab buttons */}
-            <div style={styles.tabs}>
-              {['adjust', 'filters', 'effects', 'text', 'stickers'].map(tab => (
-                <button key={tab} style={{
-                  ...styles.tabBtn,
-                  background: activeTab === tab ? 'rgba(245, 87, 108, 0.2)' : 'transparent',
-                  color: activeTab === tab ? '#f5576c' : '#ccc',
-                }} onClick={() => setActiveTab(tab as ToolTab)}>
-                  {tab === 'adjust' && '🎚️ Adjust'}
-                  {tab === 'filters' && '🎨 Filters'}
-                  {tab === 'effects' && '✨ Effects'}
-                  {tab === 'text' && '📝 Text'}
-                  {tab === 'stickers' && '😊 Stickers'}
-                </button>
-              ))}
+            <div className="pe-header-right">
+              <button className="pe-icon-btn" onClick={() => setDark((d) => !d)} title="Toggle theme">
+                {dark ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <button className="pe-close-btn" onClick={() => handleClose(false)} title="Close"><X size={18} /></button>
             </div>
+          </header>
 
-            {/* Tab content */}
-            <div style={styles.tabContent}>
-              {activeTab === 'adjust' && (
-                <>
-                  <button onClick={autoEnhance} style={styles.autoBtn}>⚡ Auto Enhance</button>
-                  <Slider label="Brightness" value={brightness} onChange={setBrightness} />
-                  <Slider label="Contrast" value={contrast} onChange={setContrast} />
-                  <Slider label="Saturation" value={saturation} onChange={setSaturation} />
-                  <Slider label="Exposure" value={exposure} onChange={setExposure} />
-                  <Slider label="Highlights" value={highlights} onChange={setHighlights} />
-                  <Slider label="Shadows" value={shadows} onChange={setShadows} />
-                  <Slider label="Temperature" value={temperature} onChange={setTemperature} />
-                  <Slider label="Tint" value={tint} onChange={setTint} />
-                  <Slider label="Vibrance" value={vibrance} onChange={setVibrance} />
-                  <Slider label="Sharpness" value={sharpness} onChange={setSharpness} />
-                </>
-              )}
+          {/* ---------------- MAIN ---------------- */}
+          <div className="pe-main">
+            <div className="pe-preview-section">
+              <div className="pe-canvas-frame" ref={imgWrapRef}>
+                <img ref={imgElRef} src={imageSrc} alt="" className="pe-base-img" style={{ clipPath: `inset(0 ${100 - comparePos}% 0 0)` }} />
+                <img src={previewUrl} alt="Edited" className="pe-edit-img" style={{ clipPath: `inset(0 0 0 ${comparePos}%)` }} />
 
-              {activeTab === 'filters' && (
-                <div style={styles.filterGrid}>
-                  {filterPresets.map(f => (
-                    <button key={f.name} style={styles.filterBtn} onClick={() => {
-                      // Apply preset values (reset others)
-                      setBrightness(0); setContrast(0); setSaturation(0); setExposure(0);
-                      setHighlights(0); setShadows(0); setTemperature(0); setTint(0);
-                      setVibrance(0); setSharpness(0); setVignette(0); setGrain(0);
-                      setTimeout(() => {
-                        Object.entries(f.values).forEach(([key, val]) => {
-                          switch (key) {
-                            case 'brightness': setBrightness(val); break;
-                            case 'contrast': setContrast(val); break;
-                            case 'saturation': setSaturation(val); break;
-                            case 'exposure': setExposure(val); break;
-                            case 'highlights': setHighlights(val); break;
-                            case 'shadows': setShadows(val); break;
-                            case 'temperature': setTemperature(val); break;
-                            case 'tint': setTint(val); break;
-                            case 'vibrance': setVibrance(val); break;
-                            case 'sharpness': setSharpness(val); break;
-                            case 'vignette': setVignette(val); break;
-                            case 'grain': setGrain(val); break;
-                          }
-                        });
-                      }, 0);
-                    }}>
-                      {f.name}
-                    </button>
-                  ))}
+                {/* compare handle */}
+                <div className="pe-compare-line" style={{ left: `${comparePos}%` }} onPointerDown={onCompareDown}>
+                  <div className="pe-compare-handle"><Eye size={13} /></div>
                 </div>
-              )}
 
-              {activeTab === 'effects' && (
-                <>
-                  <Slider label="Vignette" value={vignette} onChange={setVignette} />
-                  <Slider label="Film Grain" value={grain * 100} onChange={(v) => setGrain(v / 100)} />
-                  <Slider label="Tilt-Shift Blur" value={tiltShift} onChange={setTiltShift} />
-                  <Slider label="Skin Smoothing" value={skinSmoothing} onChange={setSkinSmoothing} />
-                </>
-              )}
-
-              {activeTab === 'text' && (
-                <div style={styles.textPanel}>
-                  <button onClick={addTextLayer} style={styles.actionBtn}>+ Add Text</button>
-                  {textLayers.map(layer => (
-                    <div key={layer.id} style={styles.textLayerItem}>
-                      <input
-                        value={layer.text}
-                        onChange={(e) => updateTextLayer(layer.id, { text: e.target.value })}
-                        style={styles.textInput}
-                      />
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <select value={layer.position} onChange={(e) => updateTextLayer(layer.id, { position: e.target.value as TextPosition })} style={styles.selectSmall}>
-                          <option value="top-left">TL</option><option value="top-center">TC</option><option value="top-right">TR</option>
-                          <option value="center">C</option><option value="bottom-left">BL</option><option value="bottom-center">BC</option><option value="bottom-right">BR</option>
-                        </select>
-                        <input type="color" value={layer.color} onChange={(e) => updateTextLayer(layer.id, { color: e.target.value })} style={styles.colorSmall} />
-                        <button onClick={() => removeTextLayer(layer.id)} style={styles.delBtn}>🗑️</button>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <span>Size: {layer.fontSize}</span>
-                        <input type="range" min={12} max={200} value={layer.fontSize} onChange={(e) => updateTextLayer(layer.id, { fontSize: +e.target.value })} />
-                      </div>
+                {/* crop overlay */}
+                {activeTab === 'crop' && (
+                  <div className="pe-crop-overlay">
+                    <div className="pe-crop-mask" style={{ clipPath: cropClipPath(cropRect) }} />
+                    <div
+                      className="pe-crop-rect"
+                      style={{ left: `${cropRect.x}%`, top: `${cropRect.y}%`, width: `${cropRect.width}%`, height: `${cropRect.height}%` }}
+                      onPointerDown={(e) => onCropPointerDown(e, 'move')}
+                    >
+                      <div className="pe-crop-grid"><span /><span /><span /></div>
+                      {['nw', 'ne', 'sw', 'se'].map((c) => (
+                        <div key={c} className={`pe-crop-handle pe-crop-${c}`} onPointerDown={(e) => onCropPointerDown(e, 'resize', c)} />
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+              <div className="pe-preview-hint">Drag the divider to compare · original left, edited right</div>
+            </div>
 
-              {activeTab === 'stickers' && (
-                <div style={styles.stickerPanel}>
-                  <select value={selectedSticker} onChange={(e) => setSelectedSticker(e.target.value)} style={styles.select}>
-                    {stickerOptions.map(e => <option key={e} value={e}>{e}</option>)}
-                  </select>
-                  <button onClick={addSticker} style={styles.actionBtn}>Add Sticker</button>
-                  <div style={styles.stickerList}>
-                    {stickers.map(s => (
-                      <div key={s.id} style={styles.stickerItem} onClick={() => removeSticker(s.id)}>
-                        {s.emoji} <span style={{ fontSize: 10 }}>✕</span>
+            {/* ---------------- TOOL PANEL ---------------- */}
+            <aside className="pe-panel">
+              <nav className="pe-tabs">
+                {TABS.map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <button key={t.id} className={`pe-tab ${activeTab === t.id ? 'pe-tab-active' : ''}`} onClick={() => setActiveTab(t.id)}>
+                      <Icon size={16} />
+                      <span>{t.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+
+              <div className="pe-tab-content">
+                {activeTab === 'adjust' && (
+                  <>
+                    <Histogram data={histogram} />
+                    <button className="pe-auto-btn" onClick={autoEnhance}><Wand2 size={14} /> Auto Enhance</button>
+                    <Slider label="Exposure" value={exposure} onChange={setExposure} />
+                    <Slider label="Brightness" value={brightness} onChange={setBrightness} />
+                    <Slider label="Contrast" value={contrast} onChange={setContrast} />
+                    <Slider label="Highlights" value={highlights} onChange={setHighlights} />
+                    <Slider label="Shadows" value={shadows} onChange={setShadows} />
+                    <div className="pe-group-label">Color</div>
+                    <Slider label="Temperature" value={temperature} onChange={setTemperature} />
+                    <Slider label="Tint" value={tint} onChange={setTint} />
+                    <Slider label="Saturation" value={saturation} onChange={setSaturation} />
+                    <Slider label="Vibrance" value={vibrance} onChange={setVibrance} />
+                    <div className="pe-group-label">Detail</div>
+                    <Slider label="Sharpness" value={sharpness} onChange={setSharpness} />
+                  </>
+                )}
+
+                {activeTab === 'crop' && (
+                  <>
+                    <div className="pe-group-label">Aspect ratio</div>
+                    <div className="pe-aspect-grid">
+                      {ASPECTS.map((a) => (
+                        <button key={a.label} className={`pe-aspect-btn ${aspect === a.value ? 'pe-aspect-active' : ''}`} onClick={() => setAspectRect(a.value)}>
+                          {a.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="pe-group-label">Transform</div>
+                    <div className="pe-transform-grid">
+                      <button className="pe-tool-btn" onClick={() => setRotation((r) => r + 90)}><RotateCw size={16} /><span>Rotate</span></button>
+                      <button className="pe-tool-btn" onClick={() => setFlipH((f) => !f)}><FlipHorizontal size={16} /><span>Flip H</span></button>
+                      <button className="pe-tool-btn" onClick={() => setFlipV((f) => !f)}><FlipVertical size={16} /><span>Flip V</span></button>
+                    </div>
+                    <p className="pe-hint-text">Drag the frame on the image to reposition, or pull a corner to resize.</p>
+                  </>
+                )}
+
+                {activeTab === 'filters' && (
+                  <div className="pe-filter-grid">
+                    {FILTERS.map((f) => (
+                      <button
+                        key={f.name}
+                        className="pe-filter-chip"
+                        onClick={() => {
+                          resetAll();
+                          setTimeout(() => {
+                            Object.entries(f.values).forEach(([k, v]) => {
+                              const setters = { brightness: setBrightness, contrast: setContrast, saturation: setSaturation, exposure: setExposure, highlights: setHighlights, shadows: setShadows, temperature: setTemperature, tint: setTint, vibrance: setVibrance, sharpness: setSharpness, vignette: setVignette, grain: setGrain };
+                              if (setters[k]) setters[k](v);
+                            });
+                          }, 0);
+                        }}
+                      >
+                        <span className="pe-filter-swatch" style={{ background: `linear-gradient(135deg, ${f.swatch[0]}, ${f.swatch[1]})` }} />
+                        <span className="pe-filter-name">{f.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {activeTab === 'effects' && (
+                  <>
+                    <Slider label="Vignette" value={vignette} onChange={setVignette} min={0} max={100} />
+                    <Slider label="Film Grain" value={Math.round(grain * 100)} onChange={(v) => setGrain(v / 100)} min={0} max={100} />
+                    <Slider label="Tilt-Shift" value={tiltShift} onChange={setTiltShift} min={0} max={100} />
+                    <Slider label="Skin Smoothing" value={skinSmoothing} onChange={setSkinSmoothing} min={0} max={100} />
+                  </>
+                )}
+
+                {activeTab === 'text' && (
+                  <div className="pe-stack">
+                    <button className="pe-add-btn" onClick={addTextLayer}><Plus size={14} /> Add text</button>
+                    {textLayers.length === 0 && <p className="pe-hint-text">No text yet — add a caption or title.</p>}
+                    {textLayers.map((layer) => (
+                      <div key={layer.id} className="pe-card">
+                        <div className="pe-card-row">
+                          <input className="pe-input" value={layer.text} onChange={(e) => updateTextLayer(layer.id, { text: e.target.value })} />
+                          <button className="pe-icon-btn pe-danger" onClick={() => removeTextLayer(layer.id)}><Trash2 size={14} /></button>
+                        </div>
+                        <div className="pe-card-row">
+                          <select className="pe-select" value={layer.position} onChange={(e) => updateTextLayer(layer.id, { position: e.target.value })}>
+                            <option value="top-left">Top left</option><option value="top-center">Top center</option><option value="top-right">Top right</option>
+                            <option value="center">Center</option><option value="bottom-left">Bottom left</option><option value="bottom-center">Bottom center</option><option value="bottom-right">Bottom right</option>
+                          </select>
+                          <input type="color" className="pe-color" value={layer.color} onChange={(e) => updateTextLayer(layer.id, { color: e.target.value })} />
+                        </div>
+                        <Slider label="Size" value={layer.fontSize} min={12} max={200} onChange={(v) => updateTextLayer(layer.id, { fontSize: v })} />
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+                )}
 
-        {/* Bottom Bar */}
-        <div style={styles.bottomBar}>
-          <div style={styles.cropOptions}>
-            <span>Aspect:</span>
-            {[undefined, 1, 4/3, 16/9].map(a => (
-              <button key={String(a)} onClick={() => setAspect(a)} style={{
-                ...styles.aspectBtn, fontWeight: aspect === a ? 'bold' : 'normal' }}>
-                {a === undefined ? 'Free' : a === 1 ? '1:1' : a === 4/3 ? '4:3' : '16:9'}
-              </button>
-            ))}
+                {activeTab === 'stickers' && (
+                  <div className="pe-stack">
+                    <div className="pe-emoji-grid">
+                      {STICKERS.map((e) => (
+                        <button key={e} className={`pe-emoji-btn ${selectedSticker === e ? 'pe-emoji-active' : ''}`} onClick={() => setSelectedSticker(e)}>{e}</button>
+                      ))}
+                    </div>
+                    <button className="pe-add-btn" onClick={addSticker}><Plus size={14} /> Place sticker</button>
+                    {stickers.length > 0 && (
+                      <div className="pe-placed-grid">
+                        {stickers.map((s) => (
+                          <div key={s.id} className="pe-placed-chip" onClick={() => removeSticker(s.id)} title="Remove">
+                            {s.emoji}<X size={10} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </aside>
           </div>
-          <div style={styles.transformBtns}>
-            <button onClick={() => setRotation(r => r + 90)} style={styles.actionBtn}>↻ Rotate</button>
-            <button onClick={() => setFlipH(!flipH)} style={styles.actionBtn}>↔ Flip H</button>
-            <button onClick={() => setFlipV(!flipV)} style={styles.actionBtn}>↕ Flip V</button>
-          </div>
-          <button onClick={() => handleClose(true)} style={styles.saveBtn}>💾 Save</button>
+
+          {/* ---------------- FOOTER ---------------- */}
+          <footer className="pe-footer">
+            <span className="pe-footer-hint">{history.length > 0 ? `${historyIndex + 1} / ${history.length} edits` : 'No edits yet'}</span>
+            <div className="pe-footer-actions">
+              <button className="pe-cancel-btn" onClick={() => handleClose(false)}>Cancel</button>
+              <button className="pe-save-btn" onClick={() => handleClose(true)}><Download size={15} /> Save photo</button>
+            </div>
+          </footer>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
-};
+}
 
-// ---------- SMALL SLIDER COMPONENT ----------
-const Slider: React.FC<{ label: string; value: number; onChange: (v: number) => void }> = ({ label, value, onChange }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-    <span style={{ width: 80, color: '#ccc', fontSize: 13 }}>{label}</span>
-    <input
-      type="range" min={-100} max={100} value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      style={{ flex: 1 }}
-    />
-    <span style={{ width: 30, color: '#fff', fontSize: 13 }}>{value}</span>
-  </div>
-);
+// =====================================================================
+// SLIDER
+// =====================================================================
+function Slider({ label, value, onChange, min = -100, max = 100 }) {
+  const pct = ((value - min) / (max - min)) * 100;
+  const zero = ((0 - min) / (max - min)) * 100;
+  const lo = Math.min(pct, zero), hi = Math.max(pct, zero);
+  return (
+    <div className="pe-slider-row">
+      <div className="pe-slider-top">
+        <span className="pe-slider-label">{label}</span>
+        <span className="pe-slider-value">{value}</span>
+      </div>
+      <div className="pe-slider-track-wrap">
+        <div className="pe-slider-track" />
+        <div className="pe-slider-fill" style={{ left: `${lo}%`, width: `${hi - lo}%` }} />
+        <input
+          type="range" min={min} max={max} value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="pe-slider-input"
+        />
+      </div>
+    </div>
+  );
+}
 
-// ---------- STYLES ----------
-const styles: { [key: string]: React.CSSProperties } = {
-  overlay: {
-    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
-    display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200, padding: '20px',
-  },
-  modal: {
-    backgroundColor: '#1a1a1a', borderRadius: '24px', width: '100%', maxWidth: '1200px', height: '90vh',
-    display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.1)',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.8)', overflow: 'hidden',
-  },
-  header: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.1)',
-  },
-  headerLeft: { display: 'flex', alignItems: 'center', gap: 8 },
-  headerRight: { display: 'flex', alignItems: 'center', gap: 8 },
-  headerBtn: {
-    background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '6px 12px', borderRadius: 8,
-    cursor: 'pointer', fontSize: 14,
-  },
-  headerTitle: { color: 'white', fontSize: 18, fontWeight: 600, marginLeft: 8 },
-  closeBtn: {
-    background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontSize: 20, width: 36, height: 36,
-    borderRadius: '50%', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center',
-  },
-  mainContainer: { display: 'flex', flex: 1, overflow: 'hidden' },
-  previewSection: { flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#000', position: 'relative' },
-  cropContainer: { maxWidth: '100%', maxHeight: '100%', overflow: 'hidden' },
-  previewImage: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' },
-  toolPanel: {
-    width: 300, minWidth: 300, borderLeft: '1px solid rgba(255,255,255,0.1)',
-    display: 'flex', flexDirection: 'column', background: '#1e1e1e',
-  },
-  tabs: { display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)' },
-  tabBtn: {
-    flex: 1, padding: '10px 4px', background: 'transparent', border: 'none', color: '#ccc',
-    cursor: 'pointer', fontSize: 13, fontWeight: 600,
-  },
-  tabContent: { flex: 1, overflowY: 'auto', padding: '12px' },
-  autoBtn: {
-    background: 'linear-gradient(135deg, #f093fb, #f5576c)', border: 'none', color: 'white',
-    padding: '8px 16px', borderRadius: 20, cursor: 'pointer', fontSize: 14, marginBottom: 12,
-    width: '100%', fontWeight: 600,
-  },
-  filterGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 },
-  filterBtn: {
-    padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 8, color: 'white', cursor: 'pointer', fontSize: 13, textAlign: 'center',
-  },
-  textPanel: { display: 'flex', flexDirection: 'column', gap: 10 },
-  textLayerItem: {
-    padding: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
-  },
-  textInput: {
-    width: '100%', padding: 4, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-    borderRadius: 4, color: 'white', marginBottom: 6,
-  },
-  selectSmall: { background: '#333', color: 'white', border: 'none', padding: 2, borderRadius: 4 },
-  colorSmall: { width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer' },
-  delBtn: { background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: 16 },
-  stickerPanel: { display: 'flex', flexDirection: 'column', gap: 10 },
-  stickerList: { display: 'flex', flexWrap: 'wrap', gap: 6 },
-  stickerItem: {
-    fontSize: 24, cursor: 'pointer', padding: 4, borderRadius: 8,
-    background: 'rgba(255,255,255,0.1)', userSelect: 'none',
-  },
-  bottomBar: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.1)',
-    background: '#1e1e1e',
-  },
-  cropOptions: { display: 'flex', alignItems: 'center', gap: 8, color: '#ccc', fontSize: 13 },
-  aspectBtn: {
-    padding: '4px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 12, color: 'white', cursor: 'pointer', fontSize: 13,
-  },
-  transformBtns: { display: 'flex', gap: 8 },
-  actionBtn: {
-    padding: '6px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 20, color: 'white', cursor: 'pointer', fontSize: 13,
-  },
-  saveBtn: {
-    padding: '10px 24px', borderRadius: 30, border: 'none',
-    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    color: 'white', fontWeight: 600, fontSize: 15, cursor: 'pointer',
-  },
-  select: { background: '#333', color: 'white', border: 'none', padding: 6, borderRadius: 4 },
-};
+// =====================================================================
+// HISTOGRAM
+// =====================================================================
+function Histogram({ data }) {
+  if (!data) return <div className="pe-histogram-empty" />;
+  const max = Math.max(...data, 1);
+  return (
+    <div className="pe-histogram">
+      {data.map((v, i) => (
+        <div key={i} className="pe-histogram-bar" style={{ height: `${(v / max) * 100}%` }} />
+      ))}
+    </div>
+  );
+}
 
-export default PhotoEditor;
+function computeHistogram(ctx, w, h) {
+  const bins = new Array(32).fill(0);
+  const { data } = ctx.getImageData(0, 0, w, h);
+  const stride = 16;
+  for (let i = 0; i < data.length; i += 4 * stride) {
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    bins[Math.min(31, Math.floor((lum / 255) * 32))]++;
+  }
+  return bins;
+}
+
+function cropClipPath(r) {
+  const x1 = r.x, y1 = r.y, x2 = r.x + r.width, y2 = r.y + r.height;
+  return `polygon(0% 0%, 0% 100%, ${x1}% 100%, ${x1}% ${y1}%, ${x2}% ${y1}%, ${x2}% ${y2}%, ${x1}% ${y2}%, ${x1}% 100%, 100% 100%, 100% 0%)`;
+}
+
+// =====================================================================
+// PIXEL PROCESSING (unchanged core logic)
+// =====================================================================
+function applyPixelAdjustments(imageData, o) {
+  const data = imageData.data;
+  const exposureFactor = Math.pow(2, o.exposure / 100);
+  const tempR = 1 + o.temperature / 200;
+  const tempB = 1 - o.temperature / 200;
+  const tintG = 1 + o.tint / 200;
+  const tintRB = 1 + o.tint / 200;
+
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i], g = data[i + 1], b = data[i + 2];
+    r += (o.brightness / 100) * 255; g += (o.brightness / 100) * 255; b += (o.brightness / 100) * 255;
+    if (o.contrast !== 0) {
+      const factor = (259 * (o.contrast + 255)) / (255 * (259 - o.contrast));
+      r = factor * (r - 128) + 128; g = factor * (g - 128) + 128; b = factor * (b - 128) + 128;
+    }
+    r *= exposureFactor; g *= exposureFactor; b *= exposureFactor;
+    r *= tempR; b *= tempB;
+    if (o.tint >= 0) g *= tintG; else { r *= tintRB; b *= tintRB; }
+
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (o.shadows !== 0) { const t = Math.max(0, 1 - lum / 128); const f = 1 + (o.shadows / 100) * t; r *= f; g *= f; b *= f; }
+    if (o.highlights !== 0) { const t = Math.max(0, lum / 128 - 1); const f = 1 - (o.highlights / 100) * t; r *= f; g *= f; b *= f; }
+
+    if (o.saturation !== 0) {
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b; const s = o.saturation / 100;
+      r = gray + (r - gray) * (1 + s); g = gray + (g - gray) * (1 + s); b = gray + (b - gray) * (1 + s);
+    }
+    if (o.vibrance !== 0) {
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+      const maxC = Math.max(r, g, b), minC = Math.min(r, g, b);
+      const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
+      const vib = o.vibrance / 100; const scale = 1 + vib * (1 - sat);
+      r = gray + (r - gray) * scale; g = gray + (g - gray) * scale; b = gray + (b - gray) * scale;
+    }
+    data[i] = Math.max(0, Math.min(255, r));
+    data[i + 1] = Math.max(0, Math.min(255, g));
+    data[i + 2] = Math.max(0, Math.min(255, b));
+  }
+  if (o.sharpness !== 0) applySharpen(imageData, o.sharpness / 100);
+  return imageData;
+}
+
+function applySharpen(imageData, amount) {
+  const data = imageData.data, width = imageData.width, height = imageData.height;
+  const copy = new Uint8ClampedArray(data);
+  const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0];
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      for (let c = 0; c < 3; c++) {
+        let val = 0;
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const idx = ((y + ky) * width + (x + kx)) * 4 + c;
+            val += copy[idx] * kernel[(ky + 1) * 3 + (kx + 1)];
+          }
+        }
+        const idx = (y * width + x) * 4 + c;
+        data[idx] = Math.max(0, Math.min(255, copy[idx] + amount * (val - copy[idx])));
+      }
+    }
+  }
+}
+
+function applyVignette(ctx, w, h, intensity) {
+  const gradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) / 1.5);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(1, `rgba(0,0,0,${intensity / 100})`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function applyTiltShift(ctx, w, h, intensity) {
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)'); gradient.addColorStop(0.4, 'rgba(0,0,0,0)');
+  gradient.addColorStop(0.5, `rgba(255,255,255,${intensity / 100})`);
+  gradient.addColorStop(0.6, 'rgba(0,0,0,0)'); gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function applyGrain(ctx, w, h, amount) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 255 * amount;
+    data[i] = Math.max(0, Math.min(255, data[i] + noise));
+    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function applySkinSmoothing(ctx, w, h, intensity) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  const radius = Math.floor(intensity / 25);
+  if (radius < 1) return imageData;
+  const copy = new Uint8ClampedArray(data);
+  for (let y = radius; y < h - radius; y++) {
+    for (let x = radius; x < w - radius; x++) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const isSkin = r > 95 && g > 40 && b > 20 && max - min > 15 && Math.abs(r - g) > 15 && r > g && r > b;
+      if (isSkin) {
+        let sr = 0, sg = 0, sb = 0, count = 0;
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const nidx = ((y + dy) * w + (x + dx)) * 4;
+            sr += copy[nidx]; sg += copy[nidx + 1]; sb += copy[nidx + 2]; count++;
+          }
+        }
+        data[idx] = sr / count; data[idx + 1] = sg / count; data[idx + 2] = sb / count;
+      }
+    }
+  }
+  return imageData;
+}
+
+function drawTextLayer(ctx, w, h, layer) {
+  ctx.save();
+  const fontSize = layer.fontSize;
+  ctx.font = `bold ${fontSize}px Impact, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const margin = 20;
+  let x = w / 2, y = h / 2;
+  switch (layer.position) {
+    case 'top-left': x = margin; y = fontSize / 2 + margin; ctx.textAlign = 'left'; break;
+    case 'top-center': x = w / 2; y = fontSize / 2 + margin; break;
+    case 'top-right': x = w - margin; y = fontSize / 2 + margin; ctx.textAlign = 'right'; break;
+    case 'bottom-left': x = margin; y = h - fontSize / 2 - margin; ctx.textAlign = 'left'; break;
+    case 'bottom-center': x = w / 2; y = h - fontSize / 2 - margin; break;
+    case 'bottom-right': x = w - margin; y = h - fontSize / 2 - margin; ctx.textAlign = 'right'; break;
+    default: break;
+  }
+  if (layer.shadowBlur > 0) { ctx.shadowColor = layer.shadowColor; ctx.shadowBlur = layer.shadowBlur; }
+  if (layer.outlineWidth > 0) { ctx.strokeStyle = layer.outlineColor; ctx.lineWidth = layer.outlineWidth; ctx.strokeText(layer.text, x, y); }
+  ctx.fillStyle = layer.color;
+  ctx.fillText(layer.text, x, y);
+  ctx.restore();
+}
+
+// =====================================================================
+// STYLES
+// =====================================================================
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
+.pe-root { --font-display: 'Space Grotesk', sans-serif; --font-mono: 'JetBrains Mono', monospace; --font-body: 'Inter', sans-serif; }
+.pe-root.pe-dark {
+  --pe-bg: #0c0c0e; --pe-panel: #151517; --pe-panel-2: #1b1b1e; --pe-border: rgba(255,255,255,0.08);
+  --pe-border-2: rgba(255,255,255,0.14); --pe-text: #f3f1ec; --pe-text-dim: #8f8c86;
+  --pe-accent: #ff7a4d; --pe-accent-2: #38e0c4; --pe-track: rgba(255,255,255,0.10);
+  --pe-danger: #ff5d5d; --pe-shadow: 0 30px 80px rgba(0,0,0,0.65);
+}
+.pe-root.pe-light {
+  --pe-bg: #eeece7; --pe-panel: #ffffff; --pe-panel-2: #f6f4ef; --pe-border: rgba(20,18,14,0.08);
+  --pe-border-2: rgba(20,18,14,0.16); --pe-text: #1a1917; --pe-text-dim: #7a766d;
+  --pe-accent: #e85f2e; --pe-accent-2: #0fae93; --pe-track: rgba(20,18,14,0.08);
+  --pe-danger: #d9412f; --pe-shadow: 0 30px 80px rgba(0,0,0,0.25);
+}
+
+.pe-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center; z-index: 1200; padding: 20px; font-family: var(--font-body); }
+
+.pe-modal { width: 100%; max-width: 1240px; height: 88vh; background: var(--pe-bg); border-radius: 20px;
+  border: 1px solid var(--pe-border); box-shadow: var(--pe-shadow); display: flex; flex-direction: column; overflow: hidden;
+  animation: pe-pop 0.22s cubic-bezier(.2,.9,.3,1); }
+@keyframes pe-pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+
+/* header */
+.pe-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px;
+  border-bottom: 1px solid var(--pe-border); background: var(--pe-panel); }
+.pe-header-left, .pe-header-right { display: flex; align-items: center; gap: 6px; }
+.pe-brand { display: flex; align-items: center; gap: 6px; margin-right: 6px; }
+.pe-sprocket { width: 6px; height: 6px; border-radius: 50%; background: var(--pe-accent); opacity: 0.9; }
+.pe-sprocket:nth-child(2) { background: var(--pe-accent-2); }
+.pe-brand-text { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--pe-text); letter-spacing: 0.2px; margin-left: 4px; }
+.pe-divider { width: 1px; height: 20px; background: var(--pe-border-2); margin: 0 6px; }
+.pe-icon-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--pe-panel-2); border: 1px solid var(--pe-border);
+  color: var(--pe-text); padding: 7px 10px; border-radius: 9px; cursor: pointer; font-size: 12.5px; font-family: var(--font-body); transition: all .15s; }
+.pe-icon-btn:hover:not(:disabled) { border-color: var(--pe-border-2); transform: translateY(-1px); }
+.pe-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pe-close-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--pe-panel-2); border: 1px solid var(--pe-border); color: var(--pe-text); cursor: pointer; transition: all .15s; }
+.pe-close-btn:hover { background: var(--pe-danger); border-color: var(--pe-danger); color: white; transform: rotate(90deg); }
+
+/* main layout */
+.pe-main { flex: 1; display: flex; overflow: hidden; }
+.pe-preview-section { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,122,77,0.06), transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(56,224,196,0.05), transparent 45%),
+    var(--pe-bg);
+  position: relative; padding: 24px; gap: 10px; }
+.pe-canvas-frame { position: relative; max-width: 100%; max-height: calc(100% - 24px); display: inline-flex;
+  border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid var(--pe-border-2); }
+.pe-base-img, .pe-edit-img { display: block; max-width: 100%; max-height: 62vh; width: auto; height: auto; object-fit: contain; }
+.pe-edit-img { position: absolute; top: 0; left: 0; }
+.pe-preview-hint { font-size: 11.5px; color: var(--pe-text-dim); font-family: var(--font-mono); letter-spacing: 0.2px; }
+
+.pe-compare-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--pe-text); opacity: 0.85; cursor: ew-resize; z-index: 5; }
+.pe-compare-handle { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 30px; height: 30px;
+  border-radius: 50%; background: var(--pe-accent); color: #fff; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4); cursor: ew-resize; }
+
+/* crop overlay */
+.pe-crop-overlay { position: absolute; inset: 0; z-index: 6; }
+.pe-crop-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
+.pe-crop-rect { position: absolute; border: 1.5px solid var(--pe-accent); cursor: move; box-shadow: 0 0 0 4000px rgba(0,0,0,0); }
+.pe-crop-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3,1fr); pointer-events: none; }
+.pe-crop-grid span { border-right: 1px solid rgba(255,255,255,0.35); }
+.pe-crop-grid span:last-child { border-right: none; }
+.pe-crop-handle { position: absolute; width: 12px; height: 12px; background: var(--pe-accent); border: 2px solid white; border-radius: 3px; }
+.pe-crop-nw { top: -7px; left: -7px; cursor: nwse-resize; } .pe-crop-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+.pe-crop-ne { top: -7px; right: -7px; cursor: nesw-resize; } .pe-crop-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+
+/* right panel */
+.pe-panel { width: 320px; min-width: 320px; border-left: 1px solid var(--pe-border); background: var(--pe-panel);
+  display: flex; flex-direction: column; }
+.pe-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 10px; border-bottom: 1px solid var(--pe-border); }
+.pe-tab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 4px; background: transparent;
+  border: 1px solid transparent; border-radius: 10px; color: var(--pe-text-dim); cursor: pointer; font-size: 11px; font-family: var(--font-body); transition: all .15s; }
+.pe-tab:hover { background: var(--pe-panel-2); color: var(--pe-text); }
+.pe-tab-active { background: var(--pe-panel-2); border-color: var(--pe-border-2); color: var(--pe-accent); }
+.pe-tab-content { flex: 1; overflow-y: auto; padding: 16px; }
+.pe-tab-content::-webkit-scrollbar { width: 6px; }
+.pe-tab-content::-webkit-scrollbar-thumb { background: var(--pe-border-2); border-radius: 3px; }
+
+.pe-group-label { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--pe-text-dim); margin: 18px 0 8px; }
+.pe-group-label:first-child { margin-top: 0; }
+
+/* histogram */
+.pe-histogram { display: flex; align-items: flex-end; gap: 2px; height: 56px; background: var(--pe-panel-2);
+  border: 1px solid var(--pe-border); border-radius: 10px; padding: 8px; margin-bottom: 14px; }
+.pe-histogram-empty { height: 56px; background: var(--pe-panel-2); border: 1px solid var(--pe-border); border-radius: 10px; margin-bottom: 14px; }
+.pe-histogram-bar { flex: 1; min-height: 2px; background: linear-gradient(180deg, var(--pe-accent), var(--pe-accent-2)); border-radius: 1px; opacity: 0.85; }
+
+.pe-auto-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px;
+  background: linear-gradient(135deg, var(--pe-accent), #ff5f7a); border: none; color: white; border-radius: 12px;
+  font-family: var(--font-display); font-weight: 600; font-size: 13.5px; cursor: pointer; margin-bottom: 16px; transition: transform .15s; }
+.pe-auto-btn:hover { transform: translateY(-1px); }
+
+/* sliders */
+.pe-slider-row { margin-bottom: 14px; }
+.pe-slider-top { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.pe-slider-label { font-size: 12.5px; color: var(--pe-text); font-weight: 500; }
+.pe-slider-value { font-family: var(--font-mono); font-size: 12px; color: var(--pe-text-dim); min-width: 28px; text-align: right; }
+.pe-slider-track-wrap { position: relative; height: 18px; display: flex; align-items: center; }
+.pe-slider-track { position: absolute; left: 0; right: 0; height: 4px; border-radius: 2px; background: var(--pe-track); }
+.pe-slider-fill { position: absolute; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--pe-accent), var(--pe-accent-2)); }
+.pe-slider-input { position: relative; width: 100%; height: 18px; -webkit-appearance: none; appearance: none; background: transparent; margin: 0; cursor: pointer; }
+.pe-slider-input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--pe-text); border: 3px solid var(--pe-accent); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.4); margin-top: 0; }
+.pe-slider-input::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--pe-text); border: 3px solid var(--pe-accent); cursor: pointer; }
+.pe-slider-input::-moz-range-track { background: transparent; }
+
+/* filters */
+.pe-filter-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.pe-filter-chip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; background: var(--pe-panel-2);
+  border: 1px solid var(--pe-border); border-radius: 12px; cursor: pointer; transition: all .15s; }
+.pe-filter-chip:hover { border-color: var(--pe-accent); transform: translateY(-2px); }
+.pe-filter-swatch { width: 100%; height: 40px; border-radius: 8px; }
+.pe-filter-name { font-size: 11.5px; color: var(--pe-text); font-weight: 500; }
+
+/* crop tab */
+.pe-aspect-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.pe-aspect-btn { padding: 7px 13px; border-radius: 20px; background: var(--pe-panel-2); border: 1px solid var(--pe-border);
+  color: var(--pe-text); font-size: 12px; cursor: pointer; font-family: var(--font-mono); }
+.pe-aspect-active { border-color: var(--pe-accent); color: var(--pe-accent); background: color-mix(in srgb, var(--pe-accent) 12%, var(--pe-panel-2)); }
+.pe-transform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pe-tool-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; background: var(--pe-panel-2);
+  border: 1px solid var(--pe-border); border-radius: 12px; color: var(--pe-text); cursor: pointer; font-size: 11px; transition: all .15s; }
+.pe-tool-btn:hover { border-color: var(--pe-accent-2); color: var(--pe-accent-2); }
+.pe-hint-text { font-size: 12px; color: var(--pe-text-dim); line-height: 1.5; margin-top: 14px; }
+
+/* text / stickers */
+.pe-stack { display: flex; flex-direction: column; gap: 10px; }
+.pe-add-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px; border-radius: 10px;
+  background: var(--pe-panel-2); border: 1px dashed var(--pe-border-2); color: var(--pe-text); cursor: pointer; font-size: 13px; }
+.pe-add-btn:hover { border-color: var(--pe-accent); color: var(--pe-accent); }
+.pe-card { background: var(--pe-panel-2); border: 1px solid var(--pe-border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.pe-card-row { display: flex; gap: 8px; align-items: center; }
+.pe-input { flex: 1; padding: 7px 10px; border-radius: 8px; background: var(--pe-panel); border: 1px solid var(--pe-border); color: var(--pe-text); font-size: 13px; }
+.pe-select { flex: 1; padding: 7px 8px; border-radius: 8px; background: var(--pe-panel); border: 1px solid var(--pe-border); color: var(--pe-text); font-size: 12px; }
+.pe-color { width: 34px; height: 32px; border-radius: 8px; border: 1px solid var(--pe-border); cursor: pointer; background: none; padding: 2px; }
+.pe-danger { color: var(--pe-danger); }
+
+.pe-emoji-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.pe-emoji-btn { font-size: 22px; padding: 8px 0; border-radius: 10px; background: var(--pe-panel-2); border: 1px solid var(--pe-border); cursor: pointer; }
+.pe-emoji-active { border-color: var(--pe-accent); background: color-mix(in srgb, var(--pe-accent) 14%, var(--pe-panel-2)); }
+.pe-placed-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.pe-placed-chip { display: flex; align-items: center; gap: 4px; font-size: 18px; padding: 6px 8px; border-radius: 10px;
+  background: var(--pe-panel-2); border: 1px solid var(--pe-border); cursor: pointer; color: var(--pe-text-dim); }
+.pe-placed-chip:hover { border-color: var(--pe-danger); color: var(--pe-danger); }
+
+/* footer */
+.pe-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
+  border-top: 1px solid var(--pe-border); background: var(--pe-panel); }
+.pe-footer-hint { font-family: var(--font-mono); font-size: 11.5px; color: var(--pe-text-dim); }
+.pe-footer-actions { display: flex; gap: 10px; }
+.pe-cancel-btn { padding: 10px 18px; border-radius: 24px; background: transparent; border: 1px solid var(--pe-border-2);
+  color: var(--pe-text); cursor: pointer; font-size: 13.5px; font-weight: 500; }
+.pe-cancel-btn:hover { background: var(--pe-panel-2); }
+.pe-save-btn { display: flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 24px; border: none;
+  background: linear-gradient(135deg, var(--pe-accent), var(--pe-accent-2)); color: #0c0c0e; font-weight: 700; font-size: 13.5px;
+  cursor: pointer; box-shadow: 0 8px 24px rgba(255,122,77,0.25); transition: transform .15s; font-family: var(--font-display); }
+.pe-save-btn:hover { transform: translateY(-1px); }
+
+@media (max-width: 860px) {
+  .pe-main { flex-direction: column; }
+  .pe-panel { width: 100%; min-width: 0; border-left: none; border-top: 1px solid var(--pe-border); max-height: 44vh; }
+}
+`;
