@@ -238,6 +238,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
 
   const onCropPointerDown = (e, mode, corner) => {
     e.stopPropagation();
+    e.preventDefault(); // prevent drag from selecting
     const bounds = imgWrapRef.current.getBoundingClientRect();
     cropDrag.current = { mode, corner, startX: e.clientX, startY: e.clientY, startRect: { ...cropRect }, bounds };
     window.addEventListener('pointermove', onCropPointerMove);
@@ -305,13 +306,22 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
   // COMPARE SLIDER DRAG
   // ---------------------------------------------------------------
   const compareDrag = useRef(false);
-  const onCompareDown = () => { compareDrag.current = true; window.addEventListener('pointermove', onCompareMove); window.addEventListener('pointerup', onCompareUp); };
+  const onCompareDown = (e) => {
+    e.preventDefault();
+    compareDrag.current = true;
+    window.addEventListener('pointermove', onCompareMove);
+    window.addEventListener('pointerup', onCompareUp);
+  };
   const onCompareMove = (e) => {
     if (!compareDrag.current || !imgWrapRef.current) return;
     const b = imgWrapRef.current.getBoundingClientRect();
     setComparePos(clamp(((e.clientX - b.left) / b.width) * 100, 0, 100));
   };
-  const onCompareUp = () => { compareDrag.current = false; window.removeEventListener('pointermove', onCompareMove); window.removeEventListener('pointerup', onCompareUp); };
+  const onCompareUp = () => {
+    compareDrag.current = false;
+    window.removeEventListener('pointermove', onCompareMove);
+    window.removeEventListener('pointerup', onCompareUp);
+  };
 
   if (!isOpen) return null;
 
@@ -329,15 +339,15 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                 <span className="pe-brand-text">Editor</span>
               </div>
               <div className="pe-divider" />
-              <button className="pe-icon-btn" onClick={undo} disabled={historyIndex <= 0} title="Undo"><Undo2 size={16} /></button>
-              <button className="pe-icon-btn" onClick={redo} disabled={historyIndex >= history.length - 1} title="Redo"><Redo2 size={16} /></button>
-              <button className="pe-icon-btn" onClick={resetAll} title="Reset adjustments">Reset</button>
+              <button type="button" className="pe-icon-btn" onClick={undo} disabled={historyIndex <= 0} title="Undo"><Undo2 size={16} /></button>
+              <button type="button" className="pe-icon-btn" onClick={redo} disabled={historyIndex >= history.length - 1} title="Redo"><Redo2 size={16} /></button>
+              <button type="button" className="pe-icon-btn" onClick={resetAll} title="Reset adjustments">Reset</button>
             </div>
             <div className="pe-header-right">
-              <button className="pe-icon-btn" onClick={() => setDark((d) => !d)} title="Toggle theme">
+              <button type="button" className="pe-icon-btn" onClick={() => setDark((d) => !d)} title="Toggle theme">
                 {dark ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-              <button className="pe-close-btn" onClick={() => handleClose(false)} title="Close"><X size={18} /></button>
+              <button type="button" className="pe-close-btn" onClick={() => handleClose(false)} title="Close"><X size={18} /></button>
             </div>
           </header>
 
@@ -349,8 +359,8 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                 <img src={previewUrl} alt="Edited" className="pe-edit-img" style={{ clipPath: `inset(0 0 0 ${comparePos}%)` }} />
 
                 {/* compare handle */}
-                <div className="pe-compare-line" style={{ left: `${comparePos}%` }} onPointerDown={onCompareDown}>
-                  <div className="pe-compare-handle"><Eye size={13} /></div>
+                <div className="pe-compare-line" style={{ left: `${comparePos}%`, touchAction: 'none' }} onPointerDown={onCompareDown}>
+                  <div className="pe-compare-handle" onPointerDown={onCompareDown}><Eye size={13} /></div>
                 </div>
 
                 {/* crop overlay */}
@@ -359,7 +369,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                     <div className="pe-crop-mask" style={{ clipPath: cropClipPath(cropRect) }} />
                     <div
                       className="pe-crop-rect"
-                      style={{ left: `${cropRect.x}%`, top: `${cropRect.y}%`, width: `${cropRect.width}%`, height: `${cropRect.height}%` }}
+                      style={{ left: `${cropRect.x}%`, top: `${cropRect.y}%`, width: `${cropRect.width}%`, height: `${cropRect.height}%`, touchAction: 'none' }}
                       onPointerDown={(e) => onCropPointerDown(e, 'move')}
                     >
                       <div className="pe-crop-grid"><span /><span /><span /></div>
@@ -379,7 +389,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                 {TABS.map((t) => {
                   const Icon = t.icon;
                   return (
-                    <button key={t.id} className={`pe-tab ${activeTab === t.id ? 'pe-tab-active' : ''}`} onClick={() => setActiveTab(t.id)}>
+                    <button key={t.id} type="button" className={`pe-tab ${activeTab === t.id ? 'pe-tab-active' : ''}`} onClick={() => setActiveTab(t.id)}>
                       <Icon size={16} />
                       <span>{t.label}</span>
                     </button>
@@ -391,7 +401,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                 {activeTab === 'adjust' && (
                   <>
                     <Histogram data={histogram} />
-                    <button className="pe-auto-btn" onClick={autoEnhance}><Wand2 size={14} /> Auto Enhance</button>
+                    <button type="button" className="pe-auto-btn" onClick={autoEnhance}><Wand2 size={14} /> Auto Enhance</button>
                     <Slider label="Exposure" value={exposure} onChange={setExposure} />
                     <Slider label="Brightness" value={brightness} onChange={setBrightness} />
                     <Slider label="Contrast" value={contrast} onChange={setContrast} />
@@ -412,16 +422,16 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                     <div className="pe-group-label">Aspect ratio</div>
                     <div className="pe-aspect-grid">
                       {ASPECTS.map((a) => (
-                        <button key={a.label} className={`pe-aspect-btn ${aspect === a.value ? 'pe-aspect-active' : ''}`} onClick={() => setAspectRect(a.value)}>
+                        <button key={a.label} type="button" className={`pe-aspect-btn ${aspect === a.value ? 'pe-aspect-active' : ''}`} onClick={() => setAspectRect(a.value)}>
                           {a.label}
                         </button>
                       ))}
                     </div>
                     <div className="pe-group-label">Transform</div>
                     <div className="pe-transform-grid">
-                      <button className="pe-tool-btn" onClick={() => setRotation((r) => r + 90)}><RotateCw size={16} /><span>Rotate</span></button>
-                      <button className="pe-tool-btn" onClick={() => setFlipH((f) => !f)}><FlipHorizontal size={16} /><span>Flip H</span></button>
-                      <button className="pe-tool-btn" onClick={() => setFlipV((f) => !f)}><FlipVertical size={16} /><span>Flip V</span></button>
+                      <button type="button" className="pe-tool-btn" onClick={() => setRotation((r) => r + 90)}><RotateCw size={16} /><span>Rotate</span></button>
+                      <button type="button" className="pe-tool-btn" onClick={() => setFlipH((f) => !f)}><FlipHorizontal size={16} /><span>Flip H</span></button>
+                      <button type="button" className="pe-tool-btn" onClick={() => setFlipV((f) => !f)}><FlipVertical size={16} /><span>Flip V</span></button>
                     </div>
                     <p className="pe-hint-text">Drag the frame on the image to reposition, or pull a corner to resize.</p>
                   </>
@@ -432,6 +442,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                     {FILTERS.map((f) => (
                       <button
                         key={f.name}
+                        type="button"
                         className="pe-filter-chip"
                         onClick={() => {
                           resetAll();
@@ -461,13 +472,13 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
 
                 {activeTab === 'text' && (
                   <div className="pe-stack">
-                    <button className="pe-add-btn" onClick={addTextLayer}><Plus size={14} /> Add text</button>
+                    <button type="button" className="pe-add-btn" onClick={addTextLayer}><Plus size={14} /> Add text</button>
                     {textLayers.length === 0 && <p className="pe-hint-text">No text yet — add a caption or title.</p>}
                     {textLayers.map((layer) => (
                       <div key={layer.id} className="pe-card">
                         <div className="pe-card-row">
                           <input className="pe-input" value={layer.text} onChange={(e) => updateTextLayer(layer.id, { text: e.target.value })} />
-                          <button className="pe-icon-btn pe-danger" onClick={() => removeTextLayer(layer.id)}><Trash2 size={14} /></button>
+                          <button type="button" className="pe-icon-btn pe-danger" onClick={() => removeTextLayer(layer.id)}><Trash2 size={14} /></button>
                         </div>
                         <div className="pe-card-row">
                           <select className="pe-select" value={layer.position} onChange={(e) => updateTextLayer(layer.id, { position: e.target.value })}>
@@ -486,10 +497,10 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                   <div className="pe-stack">
                     <div className="pe-emoji-grid">
                       {STICKERS.map((e) => (
-                        <button key={e} className={`pe-emoji-btn ${selectedSticker === e ? 'pe-emoji-active' : ''}`} onClick={() => setSelectedSticker(e)}>{e}</button>
+                        <button key={e} type="button" className={`pe-emoji-btn ${selectedSticker === e ? 'pe-emoji-active' : ''}`} onClick={() => setSelectedSticker(e)}>{e}</button>
                       ))}
                     </div>
-                    <button className="pe-add-btn" onClick={addSticker}><Plus size={14} /> Place sticker</button>
+                    <button type="button" className="pe-add-btn" onClick={addSticker}><Plus size={14} /> Place sticker</button>
                     {stickers.length > 0 && (
                       <div className="pe-placed-grid">
                         {stickers.map((s) => (
@@ -509,8 +520,8 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
           <footer className="pe-footer">
             <span className="pe-footer-hint">{history.length > 0 ? `${historyIndex + 1} / ${history.length} edits` : 'No edits yet'}</span>
             <div className="pe-footer-actions">
-              <button className="pe-cancel-btn" onClick={() => handleClose(false)}>Cancel</button>
-              <button className="pe-save-btn" onClick={() => handleClose(true)}><Download size={15} /> Save photo</button>
+              <button type="button" className="pe-cancel-btn" onClick={() => handleClose(false)}>Cancel</button>
+              <button type="button" className="pe-save-btn" onClick={() => handleClose(true)}><Download size={15} /> Save photo</button>
             </div>
           </footer>
         </div>
