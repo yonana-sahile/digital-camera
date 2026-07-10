@@ -6,8 +6,8 @@ import * as faceapi from 'face-api.js';
 import PhotoGallery from './PhotoGallery';
 import GifMaker from './GifMaker';
 import TimeLapse from './TimeLapse';
-import PhotoEditor from './PhotoEditor';      // new
-import Settings from './Settings';            // new
+import PhotoEditor from './PhotoEditor';
+import Settings from './Settings';
 
 // --- Type definitions ---
 interface UploadResponse {
@@ -41,7 +41,7 @@ const stickerMap: Record<StickerType, string> = {
 };
 
 const CameraCapture: React.FC = () => {
-  // --- State ---
+  // --- All state ---
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgSrc, setImgSrc] = useState<string | null>(null);
@@ -62,45 +62,27 @@ const CameraCapture: React.FC = () => {
   const [showHistogram, setShowHistogram] = useState<boolean>(false);
   const [histogramData, setHistogramData] = useState<number[]>([]);
 
-  // --- Snapchat features ---
   const [faceDetection, setFaceDetection] = useState<boolean>(false);
   const [selectedSticker, setSelectedSticker] = useState<StickerType>('none');
   const [backgroundBlur, setBackgroundBlur] = useState<boolean>(false);
   const [modelsLoaded, setModelsLoaded] = useState<boolean>(false);
   const [faceDetections, setFaceDetections] = useState<faceapi.FaceDetection[]>([]);
 
-  // --- Component toggles ---
   const [showGallery, setShowGallery] = useState<boolean>(false);
   const [showGifMaker, setShowGifMaker] = useState<boolean>(false);
   const [showTimeLapse, setShowTimeLapse] = useState<boolean>(false);
   const [timeLapseImages, setTimeLapseImages] = useState<string[]>([]);
 
-  // --- NEW: Photo Editor & Settings ---
   const [showEditor, setShowEditor] = useState<boolean>(false);
   const [editorImage, setEditorImage] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
-  // Custom watermark image settings
   const [watermarkImage, setWatermarkImage] = useState<string | null>(null);
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(80);
   const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right');
   const watermarkImgRef = useRef<HTMLImageElement | null>(null);
 
-  // Pre‑load watermark image when it changes
-  useEffect(() => {
-    if (watermarkImage) {
-      const img = new Image();
-      img.onload = () => {
-        watermarkImgRef.current = img;
-      };
-      img.src = watermarkImage;
-    } else {
-      watermarkImgRef.current = null;
-    }
-  }, [watermarkImage]);
-
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
-
   const videoConstraints = {
     width: 1280,
     height: 720,
@@ -197,10 +179,9 @@ const CameraCapture: React.FC = () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    // Draw video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Background blur (with face preservation)
+    // Background blur with face preservation
     if (backgroundBlur) {
       let faceBox = null;
       if (faceDetection && faceDetections.length > 0) {
@@ -235,14 +216,12 @@ const CameraCapture: React.FC = () => {
       }
     }
 
-    // Auto‑enhance
     if (autoEnhance) {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const enhanced = applyAutoEnhance(imageData);
       ctx.putImageData(enhanced, 0, 0);
     }
 
-    // Apply filter
     if (activeFilter !== 'none') {
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvas.width;
@@ -257,7 +236,6 @@ const CameraCapture: React.FC = () => {
       }
     }
 
-    // Draw sticker
     if (selectedSticker !== 'none' && faceDetections.length > 0) {
       const detection = faceDetections[0];
       const box = detection.box;
@@ -278,16 +256,14 @@ const CameraCapture: React.FC = () => {
       ctx.shadowBlur = 0;
     }
 
-    // --- Watermark (custom image or text) ---
+    // --- Watermark (image or text) ---
     if (watermarkImgRef.current) {
-      // Draw image watermark
       const img = watermarkImgRef.current;
       const margin = 20;
       let x = 0,
         y = 0;
       const w = img.width,
         h = img.height;
-      // Scale if image is too large (max 200px width)
       let scale = 1;
       if (w > 200) scale = 200 / w;
       const drawW = w * scale;
@@ -319,7 +295,6 @@ const CameraCapture: React.FC = () => {
       ctx.drawImage(img, x, y, drawW, drawH);
       ctx.globalAlpha = 1.0;
     } else if (watermarkText.trim()) {
-      // fallback to text
       ctx.font = 'bold 24px Inter, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'bottom';
@@ -356,7 +331,20 @@ const CameraCapture: React.FC = () => {
     localStorage.setItem('adwashield_photos', JSON.stringify(photos));
   };
 
-  // --- Single capture (synchronous) ---
+  // --- Pre‑load watermark image ---
+  useEffect(() => {
+    if (watermarkImage) {
+      const img = new Image();
+      img.onload = () => {
+        watermarkImgRef.current = img;
+      };
+      img.src = watermarkImage;
+    } else {
+      watermarkImgRef.current = null;
+    }
+  }, [watermarkImage]);
+
+  // --- Single capture ---
   const performCapture = useCallback((): string | null => {
     const image = captureWithFilter();
     if (image) {
@@ -479,7 +467,7 @@ const CameraCapture: React.FC = () => {
     setNotification(null);
   };
 
-  // --- Voice Commands (updated with new features) ---
+  // --- Voice Commands ---
   useEffect(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       return;
@@ -548,9 +536,10 @@ const CameraCapture: React.FC = () => {
   }, [isListening, startCaptureSequence, imgSrc, isCapturing, selectedSticker, faceDetection, backgroundBlur]);
 
   // --- Face‑API models ---
+  const MODEL_URL = "/models";
+
   useEffect(() => {
     const loadModels = async () => {
-     const MODEL_URL = "/models";
       try {
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
@@ -564,7 +553,7 @@ const CameraCapture: React.FC = () => {
     loadModels();
   }, []);
 
-  // --- Real‑time overlay ---
+  // --- Real‑time overlay (face detection, stickers, grid) ---
   useEffect(() => {
     if (!webcamRef.current?.video || !canvasRef.current) return;
 
@@ -693,7 +682,7 @@ const CameraCapture: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [imgSrc, isCapturing, startCaptureSequence]);
 
-  // --- Render ---
+  // ===================== RENDER =====================
   return (
     <div style={styles.pageContainer}>
       <style>{`
@@ -756,73 +745,164 @@ const CameraCapture: React.FC = () => {
 
       {/* Main container */}
       <div style={styles.mainContainer}>
-        {/* Filter Toggle */}
-        <button
-          style={styles.filterToggle}
-          onClick={() => setShowFilters(!showFilters)}
-          title="Toggle Filters"
-        >
-          🎨
-        </button>
-
-        {/* Filter Sidebar */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              style={styles.filterSidebar}
-              initial={{ x: -300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -300, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        {/* LEFT SIDEBAR – all tools */}
+        <div style={styles.sidebar}>
+          <div style={styles.sidebarGroup}>
+            <button
+              className={`mode-btn ${mode === 'single' ? 'active' : ''}`}
+              style={styles.sidebarBtn}
+              onClick={() => setMode('single')}
+              title="Single"
             >
-              <div style={styles.sidebarHeader}>
-                <span>Filters</span>
-                <button onClick={() => setShowFilters(false)} style={styles.closeSidebar}>✕</button>
-              </div>
-              <div style={styles.filterList}>
-                {([
-                  'none',
-                  'grayscale',
-                  'sepia',
-                  'invert',
-                  'blur',
-                  'vintage',
-                  'hue-rotate',
-                  'warm',
-                  'cool',
-                  'vivid',
-                  'dramatic',
-                  'vignette',
-                ] as FilterType[]).map((filter) => (
-                  <button
-                    key={filter}
-                    className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
-                    onClick={() => {
-                      setActiveFilter(filter);
-                      setShowFilters(false);
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '8px',
-                        backgroundImage: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                        filter: filterStyles[filter],
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={styles.filterLabel}>{filterLabels[filter]}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              📸
+            </button>
+            <button
+              className={`mode-btn ${mode === 'timer' ? 'active' : ''}`}
+              style={styles.sidebarBtn}
+              onClick={() => setMode('timer')}
+              title="Timer"
+            >
+              ⏱️
+            </button>
+            <button
+              className={`mode-btn ${mode === 'burst' ? 'active' : ''}`}
+              style={styles.sidebarBtn}
+              onClick={() => setMode('burst')}
+              title="Burst"
+            >
+              🔫
+            </button>
+          </div>
 
-        {/* Camera Section */}
-        <div style={styles.cameraSection}>
-          {/* Camera Preview */}
+          <div style={styles.sidebarDivider} />
+
+          <div style={styles.sidebarGroup}>
+            <button
+              style={{ ...styles.sidebarBtn, backgroundColor: showFilters ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              onClick={() => setShowFilters(!showFilters)}
+              title="Filters"
+            >
+              🎨
+            </button>
+            <button
+              style={styles.sidebarBtn}
+              onClick={() => setShowGallery(true)}
+              title="Gallery"
+            >
+              🖼️
+            </button>
+            <button
+              style={styles.sidebarBtn}
+              onClick={() => setShowGifMaker(true)}
+              title="GIF Maker"
+            >
+              🎞️
+            </button>
+            <button
+              style={styles.sidebarBtn}
+              onClick={() => setShowTimeLapse(true)}
+              title="Time‑lapse"
+            >
+              ⏱️
+            </button>
+            <button
+              style={styles.sidebarBtn}
+              onClick={() => setShowSettings(true)}
+              title="Settings"
+            >
+              ⚙️
+            </button>
+          </div>
+
+          <div style={styles.sidebarDivider} />
+
+          <div style={styles.sidebarGroup}>
+            <button
+              style={{ ...styles.sidebarBtn, backgroundColor: faceDetection ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              onClick={() => setFaceDetection(!faceDetection)}
+              title="Face Detection"
+            >
+              👤
+            </button>
+            <button
+              style={{ ...styles.sidebarBtn, backgroundColor: backgroundBlur ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              onClick={() => setBackgroundBlur(!backgroundBlur)}
+              title="Background Blur"
+            >
+              🌫️
+            </button>
+            <button
+              style={{ ...styles.sidebarBtn, backgroundColor: isListening ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              onClick={() => setIsListening(!isListening)}
+              title="Voice"
+            >
+              🎤
+            </button>
+            <button
+              style={{ ...styles.sidebarBtn, backgroundColor: autoEnhance ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              onClick={() => setAutoEnhance(!autoEnhance)}
+              title="Auto‑Enhance"
+            >
+              ✨
+            </button>
+            <button
+              style={{ ...styles.sidebarBtn, backgroundColor: showHistogram ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              onClick={() => setShowHistogram(!showHistogram)}
+              title="Histogram"
+            >
+              📊
+            </button>
+            <button
+              style={{ ...styles.sidebarBtn, backgroundColor: showGrid ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              onClick={() => setShowGrid(!showGrid)}
+              title="Grid"
+            >
+              ⊞
+            </button>
+          </div>
+
+          <div style={styles.sidebarDivider} />
+
+          <div style={styles.sidebarGroup}>
+            <select
+              value={selectedSticker}
+              onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
+              style={styles.sidebarSelect}
+              title="Stickers"
+            >
+              <option value="none">None</option>
+              <option value="sunglasses">😎</option>
+              <option value="hat">🧢</option>
+              <option value="moustache">🧔</option>
+              <option value="dogears">🐶</option>
+            </select>
+            {mode === 'timer' && (
+              <select
+                value={timerDelay}
+                onChange={(e) => setTimerDelay(Number(e.target.value))}
+                style={styles.sidebarSelect}
+              >
+                <option value={3}>3s</option>
+                <option value={5}>5s</option>
+                <option value={10}>10s</option>
+              </select>
+            )}
+            {mode === 'burst' && (
+              <select
+                value={burstCount}
+                onChange={(e) => setBurstCount(Number(e.target.value))}
+                style={styles.sidebarSelect}
+              >
+                <option value={3}>3 shots</option>
+                <option value={5}>5 shots</option>
+                <option value={10}>10 shots</option>
+              </select>
+            )}
+          </div>
+        </div>
+
+        {/* CENTER – Camera and main controls */}
+        <div style={styles.centerArea}>
           <motion.div
             style={styles.webcamWrapper}
             initial={{ scale: 0.95, opacity: 0 }}
@@ -834,8 +914,6 @@ const CameraCapture: React.FC = () => {
               <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
               <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
               <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
-
-              {/* Overlay canvas */}
               <canvas
                 ref={canvasRef}
                 style={{
@@ -848,7 +926,6 @@ const CameraCapture: React.FC = () => {
                   zIndex: 5,
                 }}
               />
-
               {countdown !== null && (
                 <div style={styles.countdownOverlay}>
                   <span style={styles.countdownNumber}>{countdown}</span>
@@ -906,146 +983,7 @@ const CameraCapture: React.FC = () => {
             )}
           </motion.div>
 
-          {/* Toolbar with new buttons */}
-          {!imgSrc && (
-            <div style={styles.toolbar}>
-              <div style={styles.toolGroup}>
-                <button
-                  className={`mode-btn ${mode === 'single' ? 'active' : ''}`}
-                  style={styles.toolBtn}
-                  onClick={() => setMode('single')}
-                  title="Single shot"
-                >
-                  📸
-                </button>
-                <button
-                  className={`mode-btn ${mode === 'timer' ? 'active' : ''}`}
-                  style={styles.toolBtn}
-                  onClick={() => setMode('timer')}
-                  title="Timer"
-                >
-                  ⏱️
-                </button>
-                <button
-                  className={`mode-btn ${mode === 'burst' ? 'active' : ''}`}
-                  style={styles.toolBtn}
-                  onClick={() => setMode('burst')}
-                  title="Burst"
-                >
-                  🔫
-                </button>
-              </div>
-              <div style={styles.toolGroup}>
-                {mode === 'timer' && (
-                  <select
-                    value={timerDelay}
-                    onChange={(e) => setTimerDelay(Number(e.target.value))}
-                    style={styles.select}
-                  >
-                    <option value={3}>3s</option>
-                    <option value={5}>5s</option>
-                    <option value={10}>10s</option>
-                  </select>
-                )}
-                {mode === 'burst' && (
-                  <select
-                    value={burstCount}
-                    onChange={(e) => setBurstCount(Number(e.target.value))}
-                    style={styles.select}
-                  >
-                    <option value={3}>3 shots</option>
-                    <option value={5}>5 shots</option>
-                    <option value={10}>10 shots</option>
-                  </select>
-                )}
-                <button
-                  style={{ ...styles.toolBtn, backgroundColor: showGrid ? 'rgba(245,87,108,0.2)' : 'transparent' }}
-                  onClick={() => setShowGrid(!showGrid)}
-                  title="Toggle Grid"
-                >
-                  ⊞
-                </button>
-                <button
-                  style={{ ...styles.toolBtn, backgroundColor: autoEnhance ? 'rgba(245,87,108,0.2)' : 'transparent' }}
-                  onClick={() => setAutoEnhance(!autoEnhance)}
-                  title="Auto‑Enhance"
-                >
-                  ✨
-                </button>
-                <button
-                  style={{ ...styles.toolBtn, backgroundColor: showHistogram ? 'rgba(245,87,108,0.2)' : 'transparent' }}
-                  onClick={() => setShowHistogram(!showHistogram)}
-                  title="Histogram"
-                >
-                  📊
-                </button>
-                <button
-                  style={{ ...styles.toolBtn, backgroundColor: isListening ? 'rgba(245,87,108,0.2)' : 'transparent' }}
-                  onClick={() => setIsListening(!isListening)}
-                  title="Voice Commands"
-                >
-                  🎤
-                </button>
-                <button
-                  style={{ ...styles.toolBtn, backgroundColor: faceDetection ? 'rgba(245,87,108,0.2)' : 'transparent' }}
-                  onClick={() => setFaceDetection(!faceDetection)}
-                  title="Face Detection"
-                >
-                  👤
-                </button>
-                <button
-                  style={{ ...styles.toolBtn, backgroundColor: backgroundBlur ? 'rgba(245,87,108,0.2)' : 'transparent' }}
-                  onClick={() => setBackgroundBlur(!backgroundBlur)}
-                  title="Background Blur"
-                >
-                  🌫️
-                </button>
-                <select
-                  value={selectedSticker}
-                  onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
-                  style={{ ...styles.select, minWidth: '80px' }}
-                  title="Stickers"
-                >
-                  <option value="none">None</option>
-                  <option value="sunglasses">😎</option>
-                  <option value="hat">🧢</option>
-                  <option value="moustache">🧔</option>
-                  <option value="dogears">🐶</option>
-                </select>
-                {/* NEW BUTTONS */}
-                <button
-                  style={{ ...styles.toolBtn }}
-                  onClick={() => setShowGallery(true)}
-                  title="Gallery"
-                >
-                  🖼️
-                </button>
-                <button
-                  style={{ ...styles.toolBtn }}
-                  onClick={() => setShowGifMaker(true)}
-                  title="GIF Maker"
-                >
-                  🎞️
-                </button>
-                <button
-                  style={{ ...styles.toolBtn }}
-                  onClick={() => setShowTimeLapse(true)}
-                  title="Time‑lapse"
-                >
-                  ⏱️
-                </button>
-                <button
-                  style={{ ...styles.toolBtn }}
-                  onClick={() => setShowSettings(true)}
-                  title="Settings"
-                >
-                  ⚙️
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Controls */}
+          {/* Controls – only capture button and post‑capture actions */}
           <div style={styles.controls}>
             {!imgSrc ? (
               <motion.button
@@ -1075,10 +1013,7 @@ const CameraCapture: React.FC = () => {
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    setEditorImage(imgSrc);
-                    setShowEditor(true);
-                  }}
+                  onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }}
                   style={styles.secondaryBtn}
                 >
                   ✏️ Edit
@@ -1096,7 +1031,6 @@ const CameraCapture: React.FC = () => {
             )}
           </div>
 
-          {/* Burst thumbnails */}
           {capturedImages.length > 1 && (
             <div style={styles.burstPreviews}>
               {capturedImages.map((img, idx) => (
@@ -1105,29 +1039,73 @@ const CameraCapture: React.FC = () => {
             </div>
           )}
 
-          {/* Keyboard hint */}
           <div style={styles.keyHint}>
             <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; 🎤: Voice</span>
           </div>
         </div>
       </div>
 
-      {/* === New Components === */}
-      <PhotoGallery
-        isOpen={showGallery}
-        onClose={() => setShowGallery(false)}
-      />
-      <GifMaker
-        images={capturedImages}
-        isOpen={showGifMaker}
-        onClose={() => setShowGifMaker(false)}
-      />
+      {/* Filter sidebar (slide‑in) */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            style={styles.filterSidebar}
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          >
+            <div style={styles.sidebarHeader}>
+              <span>Filters</span>
+              <button onClick={() => setShowFilters(false)} style={styles.closeSidebar}>✕</button>
+            </div>
+            <div style={styles.filterList}>
+              {([
+                'none',
+                'grayscale',
+                'sepia',
+                'invert',
+                'blur',
+                'vintage',
+                'hue-rotate',
+                'warm',
+                'cool',
+                'vivid',
+                'dramatic',
+                'vignette',
+              ] as FilterType[]).map((filter) => (
+                <button
+                  key={filter}
+                  className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveFilter(filter);
+                    setShowFilters(false);
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      backgroundImage: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                      filter: filterStyles[filter],
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={styles.filterLabel}>{filterLabels[filter]}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modals */}
+      <PhotoGallery isOpen={showGallery} onClose={() => setShowGallery(false)} />
+      <GifMaker images={capturedImages} isOpen={showGifMaker} onClose={() => setShowGifMaker(false)} />
       <TimeLapse
         isOpen={showTimeLapse}
-        onClose={() => {
-          setShowTimeLapse(false);
-          setTimeLapseImages([]);
-        }}
+        onClose={() => { setShowTimeLapse(false); setTimeLapseImages([]); }}
         onCapture={handleTimeLapseCapture}
       />
       <PhotoEditor
@@ -1137,8 +1115,6 @@ const CameraCapture: React.FC = () => {
           setShowEditor(false);
           if (editedImage) {
             setImgSrc(editedImage);
-            // Optionally update the gallery or re‑save
-            // We can replace the current gallery entry, but for simplicity we'll save as new.
             savePhotoToGallery(editedImage);
             showNotification('Edited photo saved!', 'success');
           }
@@ -1161,7 +1137,7 @@ const CameraCapture: React.FC = () => {
   );
 };
 
-// --- Styles (unchanged) ---
+// ===================== STYLES =====================
 const styles: { [key: string]: React.CSSProperties } = {
   pageContainer: {
     display: 'flex',
@@ -1193,7 +1169,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    maxWidth: '800px',
+    maxWidth: '900px',
     marginBottom: '15px',
     padding: '0 10px',
     zIndex: 5,
@@ -1231,75 +1207,71 @@ const styles: { [key: string]: React.CSSProperties } = {
     letterSpacing: '1px',
   },
   mainContainer: {
-    position: 'relative',
+    display: 'flex',
     width: '100%',
-    maxWidth: '800px',
+    maxWidth: '900px',
+    gap: '16px',
+    position: 'relative',
+  },
+  sidebar: {
     display: 'flex',
-    alignItems: 'flex-start',
-  },
-  filterToggle: {
-    position: 'absolute',
-    left: '-60px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'rgba(255,255,255,0.08)',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: '30px',
-    padding: '12px 8px',
-    fontSize: '24px',
-    cursor: 'pointer',
-    color: 'white',
-    transition: 'all 0.2s',
-    zIndex: 20,
-  },
-  filterSidebar: {
-    position: 'absolute',
-    left: '-20px',
-    top: '0',
-    width: '260px',
-    height: '100%',
-    background: 'rgba(20,20,20,0.9)',
-    backdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '20px',
-    padding: '20px 16px',
-    overflowY: 'auto',
-    zIndex: 30,
-    boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-  },
-  sidebarHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     alignItems: 'center',
-    marginBottom: '16px',
-    color: 'white',
-    fontWeight: '600',
-    fontSize: '18px',
+    padding: '12px 8px',
+    background: 'rgba(255,255,255,0.04)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '20px',
+    border: '1px solid rgba(255,255,255,0.05)',
+    minWidth: '60px',
+    maxWidth: '60px',
+    gap: '8px',
+    height: 'fit-content',
+    position: 'sticky',
+    top: '80px',
   },
-  closeSidebar: {
-    background: 'none',
-    border: 'none',
-    color: '#aaa',
+  sidebarGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '6px',
+    width: '100%',
+  },
+  sidebarDivider: {
+    width: '80%',
+    height: '1px',
+    background: 'rgba(255,255,255,0.08)',
+    margin: '4px 0',
+  },
+  sidebarBtn: {
+    background: 'transparent',
+    border: '2px solid transparent',
+    borderRadius: '12px',
+    padding: '8px',
     fontSize: '20px',
     cursor: 'pointer',
-  },
-  filterList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  filterLabel: {
-    color: '#eee',
-    fontSize: '14px',
-    fontWeight: '500',
-  },
-  cameraSection: {
-    flex: 1,
+    color: '#ccc',
+    transition: 'all 0.2s',
     width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sidebarSelect: {
+    background: 'rgba(255,255,255,0.08)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '8px',
+    padding: '4px 6px',
+    color: 'white',
+    fontSize: '12px',
+    cursor: 'pointer',
+    width: '100%',
+  },
+  centerArea: {
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    width: '100%',
   },
   webcamWrapper: {
     position: 'relative',
@@ -1360,47 +1332,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '4px',
     zIndex: 15,
   },
-  toolbar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: '15px',
-    padding: '8px 16px',
-    background: 'rgba(255,255,255,0.04)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '16px',
-    border: '1px solid rgba(255,255,255,0.05)',
-    flexWrap: 'wrap',
-    gap: '10px',
-  },
-  toolGroup: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  toolBtn: {
-    background: 'transparent',
-    border: '2px solid transparent',
-    borderRadius: '10px',
-    padding: '6px 12px',
-    fontSize: '18px',
-    cursor: 'pointer',
-    color: '#ccc',
-    transition: 'all 0.2s',
-  },
-  select: {
-    background: 'rgba(255,255,255,0.08)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '8px',
-    padding: '4px 8px',
-    color: 'white',
-    fontSize: '14px',
-    cursor: 'pointer',
-  },
   controls: {
-    marginTop: '25px',
+    marginTop: '20px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1430,13 +1363,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   actionButtonGroup: {
     display: 'flex',
-    gap: '20px',
+    gap: '16px',
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
   secondaryBtn: {
-    padding: '12px 28px',
-    fontSize: '16px',
+    padding: '10px 20px',
+    fontSize: '14px',
     fontWeight: '600',
     backgroundColor: 'rgba(255,255,255,0.08)',
     backdropFilter: 'blur(10px)',
@@ -1447,8 +1380,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.2s',
   },
   primaryBtn: {
-    padding: '12px 32px',
-    fontSize: '16px',
+    padding: '10px 28px',
+    fontSize: '14px',
     fontWeight: '600',
     background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     color: 'white',
@@ -1478,6 +1411,48 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '12px',
     color: '#666',
     letterSpacing: '0.5px',
+  },
+  filterSidebar: {
+    position: 'fixed',
+    left: '20px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '260px',
+    maxHeight: '80vh',
+    background: 'rgba(20,20,20,0.9)',
+    backdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '20px',
+    padding: '20px 16px',
+    overflowY: 'auto',
+    zIndex: 30,
+    boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+  },
+  sidebarHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px',
+    color: 'white',
+    fontWeight: '600',
+    fontSize: '18px',
+  },
+  closeSidebar: {
+    background: 'none',
+    border: 'none',
+    color: '#aaa',
+    fontSize: '20px',
+    cursor: 'pointer',
+  },
+  filterList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  filterLabel: {
+    color: '#eee',
+    fontSize: '14px',
+    fontWeight: '500',
   },
 };
 
