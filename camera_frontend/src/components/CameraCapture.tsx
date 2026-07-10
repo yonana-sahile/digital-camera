@@ -9,7 +9,7 @@ import TimeLapse from './TimeLapse';
 import PhotoEditor from './PhotoEditor';
 import Settings from './Settings';
 
-// --- Type definitions ---
+// --- Type definitions (unchanged) ---
 interface UploadResponse {
   message: string;
   data?: any;
@@ -41,7 +41,7 @@ const stickerMap: Record<StickerType, string> = {
 };
 
 const CameraCapture: React.FC = () => {
-  // --- All state ---
+  // --- All state (exactly as before) ---
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgSrc, setImgSrc] = useState<string | null>(null);
@@ -61,22 +61,18 @@ const CameraCapture: React.FC = () => {
   const [watermarkText, setWatermarkText] = useState<string>('AdwaShield');
   const [showHistogram, setShowHistogram] = useState<boolean>(false);
   const [histogramData, setHistogramData] = useState<number[]>([]);
-
   const [faceDetection, setFaceDetection] = useState<boolean>(false);
   const [selectedSticker, setSelectedSticker] = useState<StickerType>('none');
   const [backgroundBlur, setBackgroundBlur] = useState<boolean>(false);
   const [modelsLoaded, setModelsLoaded] = useState<boolean>(false);
   const [faceDetections, setFaceDetections] = useState<faceapi.FaceDetection[]>([]);
-
   const [showGallery, setShowGallery] = useState<boolean>(false);
   const [showGifMaker, setShowGifMaker] = useState<boolean>(false);
   const [showTimeLapse, setShowTimeLapse] = useState<boolean>(false);
   const [timeLapseImages, setTimeLapseImages] = useState<string[]>([]);
-
   const [showEditor, setShowEditor] = useState<boolean>(false);
   const [editorImage, setEditorImage] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-
   const [watermarkImage, setWatermarkImage] = useState<string | null>(null);
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(80);
   const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right');
@@ -89,7 +85,7 @@ const CameraCapture: React.FC = () => {
     facingMode: 'user',
   };
 
-  // --- Filters ---
+  // --- Filters (unchanged) ---
   const filterStyles: Record<FilterType, string> = {
     none: 'none',
     grayscale: 'grayscale(100%)',
@@ -126,7 +122,7 @@ const CameraCapture: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // --- Auto‑enhance ---
+  // --- Auto‑enhance (unchanged) ---
   const applyAutoEnhance = (imageData: ImageData): ImageData => {
     const data = imageData.data;
     let minR = 255,
@@ -167,7 +163,7 @@ const CameraCapture: React.FC = () => {
     return imageData;
   };
 
-  // --- Capture with all effects (synchronous) ---
+  // --- Capture (unchanged) ---
   const captureWithFilter = useCallback((): string | null => {
     const video = webcamRef.current?.video;
     if (!video) return null;
@@ -181,7 +177,6 @@ const CameraCapture: React.FC = () => {
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Background blur with face preservation
     if (backgroundBlur) {
       let faceBox = null;
       if (faceDetection && faceDetections.length > 0) {
@@ -256,7 +251,6 @@ const CameraCapture: React.FC = () => {
       ctx.shadowBlur = 0;
     }
 
-    // --- Watermark (image or text) ---
     if (watermarkImgRef.current) {
       const img = watermarkImgRef.current;
       const margin = 20;
@@ -318,7 +312,7 @@ const CameraCapture: React.FC = () => {
     watermarkOpacity,
   ]);
 
-  // --- Save to gallery (localStorage) ---
+  // --- Gallery save (unchanged) ---
   const savePhotoToGallery = (dataURL: string) => {
     const stored = localStorage.getItem('adwashield_photos');
     let photos: any[] = stored ? JSON.parse(stored) : [];
@@ -331,20 +325,18 @@ const CameraCapture: React.FC = () => {
     localStorage.setItem('adwashield_photos', JSON.stringify(photos));
   };
 
-  // --- Pre‑load watermark image ---
+  // --- Pre‑load watermark (unchanged) ---
   useEffect(() => {
     if (watermarkImage) {
       const img = new Image();
-      img.onload = () => {
-        watermarkImgRef.current = img;
-      };
+      img.onload = () => { watermarkImgRef.current = img; };
       img.src = watermarkImage;
     } else {
       watermarkImgRef.current = null;
     }
   }, [watermarkImage]);
 
-  // --- Single capture ---
+  // --- Single capture (unchanged) ---
   const performCapture = useCallback((): string | null => {
     const image = captureWithFilter();
     if (image) {
@@ -359,7 +351,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [captureWithFilter]);
 
-  // --- Timer & Burst ---
+  // --- Timer & Burst (unchanged) ---
   const startCaptureSequence = useCallback(async () => {
     if (isCapturing) return;
     setIsCapturing(true);
@@ -402,7 +394,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [mode, timerDelay, burstCount, performCapture, captureWithFilter, isCapturing]);
 
-  // --- Time‑lapse capture handler ---
+  // --- Time‑lapse handler (unchanged) ---
   const handleTimeLapseCapture = useCallback(() => {
     const image = captureWithFilter();
     if (image) {
@@ -411,7 +403,7 @@ const CameraCapture: React.FC = () => {
     }
   }, [captureWithFilter, timeLapseImages.length]);
 
-  // --- Upload, Download, Share ---
+  // --- Upload, Download, Share (unchanged) ---
   const uploadPhoto = async () => {
     if (!imgSrc) return;
     setLoading(true);
@@ -467,11 +459,9 @@ const CameraCapture: React.FC = () => {
     setNotification(null);
   };
 
-  // --- Voice Commands ---
+  // --- Voice Commands (unchanged) ---
   useEffect(() => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      return;
-    }
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
@@ -524,20 +514,12 @@ const CameraCapture: React.FC = () => {
       }
     };
 
-    if (isListening) {
-      recognition.start();
-    } else {
-      recognition.stop();
-    }
-
-    return () => {
-      recognition.stop();
-    };
+    if (isListening) { recognition.start(); } else { recognition.stop(); }
+    return () => { recognition.stop(); };
   }, [isListening, startCaptureSequence, imgSrc, isCapturing, selectedSticker, faceDetection, backgroundBlur]);
 
-  // --- Face‑API models ---
+  // --- Face‑API models (local) ---
   const MODEL_URL = "/models";
-
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -553,17 +535,15 @@ const CameraCapture: React.FC = () => {
     loadModels();
   }, []);
 
-  // --- Real‑time overlay (face detection, stickers, grid) ---
+  // --- Real‑time overlay (unchanged) ---
   useEffect(() => {
     if (!webcamRef.current?.video || !canvasRef.current) return;
-
     const video = webcamRef.current.video;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let animationId: number;
-
     const drawLoop = async () => {
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
@@ -571,23 +551,16 @@ const CameraCapture: React.FC = () => {
 
       if (faceDetection && modelsLoaded) {
         try {
-          const detections = await faceapi.detectAllFaces(
-            video,
-            new faceapi.TinyFaceDetectorOptions()
-          );
+          const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
           setFaceDetections(detections);
           if (detections.length > 0) {
-            const resized = detections.map((d) =>
-              d.forSize(canvas.width, canvas.height)
-            );
+            const resized = detections.map((d) => d.forSize(canvas.width, canvas.height));
             faceapi.draw.drawDetections(canvas, resized);
             faceapi.draw.drawFaceLandmarks(canvas, resized);
           } else {
             setFaceDetections([]);
           }
-        } catch (err) {
-          console.warn('Face detection error:', err);
-        }
+        } catch (err) { console.warn('Face detection error:', err); }
       }
 
       if (selectedSticker !== 'none' && faceDetections.length > 0) {
@@ -631,15 +604,11 @@ const CameraCapture: React.FC = () => {
 
       animationId = requestAnimationFrame(drawLoop);
     };
-
     drawLoop();
-
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId);
-    };
+    return () => { if (animationId) cancelAnimationFrame(animationId); };
   }, [faceDetection, modelsLoaded, selectedSticker, faceDetections, showGrid]);
 
-  // --- Histogram ---
+  // --- Histogram (unchanged) ---
   const updateHistogram = useCallback(() => {
     if (!showHistogram) return;
     const video = webcamRef.current?.video;
@@ -730,27 +699,23 @@ const CameraCapture: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Header */}
+      {/* Header (unchanged) */}
       <div style={styles.header}>
         <h1 style={styles.title}>📷 AdwaShield</h1>
         <div style={styles.liveIndicator}>
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-            style={styles.redDot}
-          />
+          <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} style={styles.redDot} />
           <span style={styles.liveText}>LIVE</span>
         </div>
       </div>
 
-      {/* Main container */}
+      {/* Main area – toolbar + camera */}
       <div style={styles.mainContainer}>
-        {/* LEFT SIDEBAR – all tools */}
-        <div style={styles.sidebar}>
-          <div style={styles.sidebarGroup}>
+        {/* HORIZONTAL TOOLBAR (inside bar) */}
+        <div style={styles.toolbar}>
+          <div style={styles.toolGroup}>
             <button
               className={`mode-btn ${mode === 'single' ? 'active' : ''}`}
-              style={styles.sidebarBtn}
+              style={styles.toolBtn}
               onClick={() => setMode('single')}
               title="Single"
             >
@@ -758,7 +723,7 @@ const CameraCapture: React.FC = () => {
             </button>
             <button
               className={`mode-btn ${mode === 'timer' ? 'active' : ''}`}
-              style={styles.sidebarBtn}
+              style={styles.toolBtn}
               onClick={() => setMode('timer')}
               title="Timer"
             >
@@ -766,7 +731,7 @@ const CameraCapture: React.FC = () => {
             </button>
             <button
               className={`mode-btn ${mode === 'burst' ? 'active' : ''}`}
-              style={styles.sidebarBtn}
+              style={styles.toolBtn}
               onClick={() => setMode('burst')}
               title="Burst"
             >
@@ -774,39 +739,39 @@ const CameraCapture: React.FC = () => {
             </button>
           </div>
 
-          <div style={styles.sidebarDivider} />
+          <div style={styles.toolDivider} />
 
-          <div style={styles.sidebarGroup}>
+          <div style={styles.toolGroup}>
             <button
-              style={{ ...styles.sidebarBtn, backgroundColor: showFilters ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              style={{ ...styles.toolBtn, backgroundColor: showFilters ? 'rgba(245,87,108,0.2)' : 'transparent' }}
               onClick={() => setShowFilters(!showFilters)}
               title="Filters"
             >
               🎨
             </button>
             <button
-              style={styles.sidebarBtn}
+              style={styles.toolBtn}
               onClick={() => setShowGallery(true)}
               title="Gallery"
             >
               🖼️
             </button>
             <button
-              style={styles.sidebarBtn}
+              style={styles.toolBtn}
               onClick={() => setShowGifMaker(true)}
               title="GIF Maker"
             >
               🎞️
             </button>
             <button
-              style={styles.sidebarBtn}
+              style={styles.toolBtn}
               onClick={() => setShowTimeLapse(true)}
               title="Time‑lapse"
             >
               ⏱️
             </button>
             <button
-              style={styles.sidebarBtn}
+              style={styles.toolBtn}
               onClick={() => setShowSettings(true)}
               title="Settings"
             >
@@ -814,46 +779,46 @@ const CameraCapture: React.FC = () => {
             </button>
           </div>
 
-          <div style={styles.sidebarDivider} />
+          <div style={styles.toolDivider} />
 
-          <div style={styles.sidebarGroup}>
+          <div style={styles.toolGroup}>
             <button
-              style={{ ...styles.sidebarBtn, backgroundColor: faceDetection ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              style={{ ...styles.toolBtn, backgroundColor: faceDetection ? 'rgba(245,87,108,0.2)' : 'transparent' }}
               onClick={() => setFaceDetection(!faceDetection)}
               title="Face Detection"
             >
               👤
             </button>
             <button
-              style={{ ...styles.sidebarBtn, backgroundColor: backgroundBlur ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              style={{ ...styles.toolBtn, backgroundColor: backgroundBlur ? 'rgba(245,87,108,0.2)' : 'transparent' }}
               onClick={() => setBackgroundBlur(!backgroundBlur)}
               title="Background Blur"
             >
               🌫️
             </button>
             <button
-              style={{ ...styles.sidebarBtn, backgroundColor: isListening ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              style={{ ...styles.toolBtn, backgroundColor: isListening ? 'rgba(245,87,108,0.2)' : 'transparent' }}
               onClick={() => setIsListening(!isListening)}
               title="Voice"
             >
               🎤
             </button>
             <button
-              style={{ ...styles.sidebarBtn, backgroundColor: autoEnhance ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              style={{ ...styles.toolBtn, backgroundColor: autoEnhance ? 'rgba(245,87,108,0.2)' : 'transparent' }}
               onClick={() => setAutoEnhance(!autoEnhance)}
               title="Auto‑Enhance"
             >
               ✨
             </button>
             <button
-              style={{ ...styles.sidebarBtn, backgroundColor: showHistogram ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              style={{ ...styles.toolBtn, backgroundColor: showHistogram ? 'rgba(245,87,108,0.2)' : 'transparent' }}
               onClick={() => setShowHistogram(!showHistogram)}
               title="Histogram"
             >
               📊
             </button>
             <button
-              style={{ ...styles.sidebarBtn, backgroundColor: showGrid ? 'rgba(245,87,108,0.2)' : 'transparent' }}
+              style={{ ...styles.toolBtn, backgroundColor: showGrid ? 'rgba(245,87,108,0.2)' : 'transparent' }}
               onClick={() => setShowGrid(!showGrid)}
               title="Grid"
             >
@@ -861,13 +826,13 @@ const CameraCapture: React.FC = () => {
             </button>
           </div>
 
-          <div style={styles.sidebarDivider} />
+          <div style={styles.toolDivider} />
 
-          <div style={styles.sidebarGroup}>
+          <div style={styles.toolGroup}>
             <select
               value={selectedSticker}
               onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
-              style={styles.sidebarSelect}
+              style={styles.toolSelect}
               title="Stickers"
             >
               <option value="none">None</option>
@@ -880,7 +845,7 @@ const CameraCapture: React.FC = () => {
               <select
                 value={timerDelay}
                 onChange={(e) => setTimerDelay(Number(e.target.value))}
-                style={styles.sidebarSelect}
+                style={styles.toolSelect}
               >
                 <option value={3}>3s</option>
                 <option value={5}>5s</option>
@@ -891,7 +856,7 @@ const CameraCapture: React.FC = () => {
               <select
                 value={burstCount}
                 onChange={(e) => setBurstCount(Number(e.target.value))}
-                style={styles.sidebarSelect}
+                style={styles.toolSelect}
               >
                 <option value={3}>3 shots</option>
                 <option value={5}>5 shots</option>
@@ -901,147 +866,126 @@ const CameraCapture: React.FC = () => {
           </div>
         </div>
 
-        {/* CENTER – Camera and main controls */}
-        <div style={styles.centerArea}>
-          <motion.div
-            style={styles.webcamWrapper}
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div style={styles.cameraOverlay}>
-              <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
-              <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
-              <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
-              <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
-              <canvas
-                ref={canvasRef}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
-                  zIndex: 5,
-                }}
-              />
-              {countdown !== null && (
-                <div style={styles.countdownOverlay}>
-                  <span style={styles.countdownNumber}>{countdown}</span>
-                </div>
-              )}
-              {showHistogram && !imgSrc && histogramData.length > 0 && (
-                <div style={styles.histogramContainer}>
-                  <canvas
-                    ref={(canvas) => {
-                      if (canvas) {
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                          const width = canvas.width;
-                          const height = canvas.height;
-                          ctx.clearRect(0, 0, width, height);
-                          const max = Math.max(...histogramData);
-                          if (max > 0) {
-                            for (let i = 0; i < histogramData.length; i++) {
-                              const h = (histogramData[i] / max) * height;
-                              ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                              ctx.fillRect(i * (width / 256), height - h, width / 256, h);
-                            }
+        {/* Camera Preview – larger width */}
+        <motion.div
+          style={styles.webcamWrapper}
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div style={styles.cameraOverlay}>
+            <div style={{ ...styles.corner, top: 0, left: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
+            <div style={{ ...styles.corner, top: 0, right: 0, borderTop: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+            <div style={{ ...styles.corner, bottom: 0, left: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderLeft: '3px solid rgba(255,255,255,0.6)' }} />
+            <div style={{ ...styles.corner, bottom: 0, right: 0, borderBottom: '3px solid rgba(255,255,255,0.6)', borderRight: '3px solid rgba(255,255,255,0.6)' }} />
+            <canvas
+              ref={canvasRef}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: 5,
+              }}
+            />
+            {countdown !== null && (
+              <div style={styles.countdownOverlay}>
+                <span style={styles.countdownNumber}>{countdown}</span>
+              </div>
+            )}
+            {showHistogram && !imgSrc && histogramData.length > 0 && (
+              <div style={styles.histogramContainer}>
+                <canvas
+                  ref={(canvas) => {
+                    if (canvas) {
+                      const ctx = canvas.getContext('2d');
+                      if (ctx) {
+                        const width = canvas.width;
+                        const height = canvas.height;
+                        ctx.clearRect(0, 0, width, height);
+                        const max = Math.max(...histogramData);
+                        if (max > 0) {
+                          for (let i = 0; i < histogramData.length; i++) {
+                            const h = (histogramData[i] / max) * height;
+                            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                            ctx.fillRect(i * (width / 256), height - h, width / 256, h);
                           }
                         }
                       }
-                    }}
-                    width={256}
-                    height={64}
-                    style={{ width: '100%', height: '100%' }}
-                  />
-                </div>
-              )}
-            </div>
-
-            {imgSrc ? (
-              <motion.img
-                src={imgSrc}
-                alt="captured"
-                style={styles.videoStream}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-              />
-            ) : (
-              <Webcam
-                audio={false}
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                videoConstraints={videoConstraints}
-                style={{
-                  ...styles.videoStream,
-                  transform: 'scaleX(-1)',
-                  filter: filterStyles[activeFilter],
-                }}
-              />
-            )}
-          </motion.div>
-
-          {/* Controls – only capture button and post‑capture actions */}
-          <div style={styles.controls}>
-            {!imgSrc ? (
-              <motion.button
-                onClick={startCaptureSequence}
-                disabled={isCapturing}
-                style={styles.captureBtn}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <div style={styles.innerCaptureBtn} />
-              </motion.button>
-            ) : (
-              <motion.div
-                style={styles.actionButtonGroup}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <button onClick={retake} style={styles.secondaryBtn}>
-                  ⟲ Retake
-                </button>
-                <button onClick={downloadImage} style={styles.secondaryBtn}>
-                  ⬇ Download
-                </button>
-                {navigator.share && (
-                  <button onClick={shareImage} style={styles.secondaryBtn}>
-                    📤 Share
-                  </button>
-                )}
-                <button
-                  onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }}
-                  style={styles.secondaryBtn}
-                >
-                  ✏️ Edit
-                </button>
-                <motion.button
-                  onClick={uploadPhoto}
-                  disabled={loading}
-                  style={styles.primaryBtn}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  {loading ? 'Syncing...' : '⬆ Upload'}
-                </motion.button>
-              </motion.div>
+                    }
+                  }}
+                  width={256}
+                  height={64}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </div>
             )}
           </div>
 
-          {capturedImages.length > 1 && (
-            <div style={styles.burstPreviews}>
-              {capturedImages.map((img, idx) => (
-                <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />
-              ))}
-            </div>
+          {imgSrc ? (
+            <motion.img
+              src={imgSrc}
+              alt="captured"
+              style={styles.videoStream}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+            />
+          ) : (
+            <Webcam
+              audio={false}
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              videoConstraints={videoConstraints}
+              style={{
+                ...styles.videoStream,
+                transform: 'scaleX(-1)',
+                filter: filterStyles[activeFilter],
+              }}
+            />
           )}
+        </motion.div>
 
-          <div style={styles.keyHint}>
-            <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; 🎤: Voice</span>
+        {/* Controls – capture button and post‑capture actions */}
+        <div style={styles.controls}>
+          {!imgSrc ? (
+            <motion.button
+              onClick={startCaptureSequence}
+              disabled={isCapturing}
+              style={styles.captureBtn}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <div style={styles.innerCaptureBtn} />
+            </motion.button>
+          ) : (
+            <motion.div style={styles.actionButtonGroup} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <button onClick={retake} style={styles.secondaryBtn}>⟲ Retake</button>
+              <button onClick={downloadImage} style={styles.secondaryBtn}>⬇ Download</button>
+              {navigator.share && <button onClick={shareImage} style={styles.secondaryBtn}>📤 Share</button>}
+              <button onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }} style={styles.secondaryBtn}>✏️ Edit</button>
+              <motion.button
+                onClick={uploadPhoto}
+                disabled={loading}
+                style={styles.primaryBtn}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                {loading ? 'Syncing...' : '⬆ Upload'}
+              </motion.button>
+            </motion.div>
+          )}
+        </div>
+
+        {capturedImages.length > 1 && (
+          <div style={styles.burstPreviews}>
+            {capturedImages.map((img, idx) => <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />)}
           </div>
+        )}
+
+        <div style={styles.keyHint}>
+          <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; 🎤: Voice</span>
         </div>
       </div>
 
@@ -1169,7 +1113,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    maxWidth: '900px',
+    maxWidth: '1100px',
     marginBottom: '15px',
     padding: '0 10px',
     zIndex: 5,
@@ -1208,71 +1152,57 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   mainContainer: {
     display: 'flex',
-    width: '100%',
-    maxWidth: '900px',
-    gap: '16px',
-    position: 'relative',
-  },
-  sidebar: {
-    display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '12px 8px',
+    width: '100%',
+    maxWidth: '1100px',
+    gap: '16px',
+  },
+  // ---------- HORIZONTAL TOOLBAR ----------
+  toolbar: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '8px 16px',
     background: 'rgba(255,255,255,0.04)',
     backdropFilter: 'blur(10px)',
-    borderRadius: '20px',
+    borderRadius: '16px',
     border: '1px solid rgba(255,255,255,0.05)',
-    minWidth: '60px',
-    maxWidth: '60px',
-    gap: '8px',
-    height: 'fit-content',
-    position: 'sticky',
-    top: '80px',
+    width: '100%',
+    gap: '6px 12px',
   },
-  sidebarGroup: {
+  toolGroup: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     gap: '6px',
-    width: '100%',
+    flexWrap: 'wrap',
   },
-  sidebarDivider: {
-    width: '80%',
-    height: '1px',
+  toolDivider: {
+    width: '1px',
+    height: '30px',
     background: 'rgba(255,255,255,0.08)',
-    margin: '4px 0',
   },
-  sidebarBtn: {
+  toolBtn: {
     background: 'transparent',
     border: '2px solid transparent',
-    borderRadius: '12px',
-    padding: '8px',
-    fontSize: '20px',
+    borderRadius: '10px',
+    padding: '6px 10px',
+    fontSize: '18px',
     cursor: 'pointer',
     color: '#ccc',
     transition: 'all 0.2s',
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  sidebarSelect: {
+  toolSelect: {
     background: 'rgba(255,255,255,0.08)',
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: '8px',
-    padding: '4px 6px',
+    padding: '4px 8px',
     color: 'white',
-    fontSize: '12px',
+    fontSize: '13px',
     cursor: 'pointer',
-    width: '100%',
   },
-  centerArea: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    width: '100%',
-  },
+  // ---------- CAMERA ----------
   webcamWrapper: {
     position: 'relative',
     width: '100%',
@@ -1332,8 +1262,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '4px',
     zIndex: 15,
   },
+  // ---------- CONTROLS ----------
   controls: {
-    marginTop: '20px',
+    marginTop: '16px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1394,7 +1325,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   burstPreviews: {
     display: 'flex',
     gap: '8px',
-    marginTop: '15px',
+    marginTop: '10px',
     flexWrap: 'wrap',
     justifyContent: 'center',
     maxWidth: '800px',
@@ -1407,11 +1338,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: '2px solid rgba(255,255,255,0.1)',
   },
   keyHint: {
-    marginTop: '15px',
+    marginTop: '10px',
     fontSize: '12px',
     color: '#666',
     letterSpacing: '0.5px',
   },
+  // ---------- FILTER SIDEBAR ----------
   filterSidebar: {
     position: 'fixed',
     left: '20px',
