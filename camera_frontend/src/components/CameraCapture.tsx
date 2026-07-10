@@ -550,7 +550,7 @@ const CameraCapture: React.FC = () => {
   // --- Face‑API models ---
   useEffect(() => {
     const loadModels = async () => {
-      const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
+     const MODEL_URL = "/models";
       try {
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
