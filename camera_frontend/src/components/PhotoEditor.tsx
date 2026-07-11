@@ -88,7 +88,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
 
   // ---- ui ----
   const [activeTab, setActiveTab] = useState('adjust');
-  const [comparePos, setComparePos] = useState(100); // 100 = fully edited, 0 = fully original
+  const [comparePos, setComparePos] = useState(50); // 50 = half original, half edited
   const [previewUrl, setPreviewUrl] = useState(imageSrc);
   const [histogram, setHistogram] = useState(null);
   const [dark, setDark] = useState(true);
@@ -355,12 +355,14 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
           <div className="pe-main">
             <div className="pe-preview-section">
               <div className="pe-canvas-frame" ref={imgWrapRef}>
-                <img ref={imgElRef} src={imageSrc} alt="" className="pe-base-img" style={{ clipPath: `inset(0 ${100 - comparePos}% 0 0)` }} />
+                <img ref={imgElRef} src={imageSrc} alt="Original" className="pe-base-img" style={{ clipPath: `inset(0 ${100 - comparePos}% 0 0)` }} />
                 <img src={previewUrl} alt="Edited" className="pe-edit-img" style={{ clipPath: `inset(0 0 0 ${comparePos}%)` }} />
 
                 {/* compare handle */}
                 <div className="pe-compare-line" style={{ left: `${comparePos}%`, touchAction: 'none' }} onPointerDown={onCompareDown}>
-                  <div className="pe-compare-handle" onPointerDown={onCompareDown}><Eye size={13} /></div>
+                  <div className="pe-compare-handle" onPointerDown={onCompareDown}>
+                    <Eye size={13} />
+                  </div>
                 </div>
 
                 {/* crop overlay */}
@@ -380,7 +382,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                   </div>
                 )}
               </div>
-              <div className="pe-preview-hint">Drag the divider to compare · original left, edited right</div>
+              <div className="pe-preview-hint">Drag the divider to compare — left original, right edited</div>
             </div>
 
             {/* ---------------- TOOL PANEL ---------------- */}
