@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Undo2, Redo2, X, Eye, Wand2, RotateCw, FlipHorizontal, FlipVertical,
   Crop as CropIcon, SlidersHorizontal, Palette, Sparkles, Type as TypeIcon,
-  Smile, Download, Trash2, Plus, Sun, Moon,
+  Smile, Download, Trash2, Plus, Sun, Moon, Heart
 } from 'lucide-react';
 
 // =====================================================================
@@ -36,6 +36,7 @@ const TABS = [
   { id: 'crop', label: 'Crop', icon: CropIcon },
   { id: 'filters', label: 'Filters', icon: Palette },
   { id: 'effects', label: 'Effects', icon: Sparkles },
+  { id: 'beauty', label: 'Beauty', icon: Heart },      // NEW
   { id: 'text', label: 'Text', icon: TypeIcon },
   { id: 'stickers', label: 'Stickers', icon: Smile },
 ];
@@ -76,6 +77,11 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
   const [tiltShift, setTiltShift] = useState(0);
   const [skinSmoothing, setSkinSmoothing] = useState(0);
 
+  // ---- beauty (NEW) ----
+  const [blemishRemoval, setBlemishRemoval] = useState(0);   // 0‑100
+  const [teethWhitening, setTeethWhitening] = useState(0);
+  const [redEyeRemoval, setRedEyeRemoval] = useState(false);
+
   // ---- text & stickers ----
   const [textLayers, setTextLayers] = useState([]);
   const [stickers, setStickers] = useState([]);
@@ -97,6 +103,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     rotation, flipH, flipV,
     brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance,
     vignette, grain, tiltShift, skinSmoothing,
+    blemishRemoval, teethWhitening, redEyeRemoval, // NEW
     textLayers: textLayers.map((l) => ({ ...l })),
     stickers: stickers.map((s) => ({ ...s })),
   };
@@ -111,7 +118,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     }
     isUndoRedo.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rotation, flipH, flipV, brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance, vignette, grain, tiltShift, skinSmoothing, textLayers, stickers]);
+  }, [rotation, flipH, flipV, brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance, vignette, grain, tiltShift, skinSmoothing, blemishRemoval, teethWhitening, redEyeRemoval, textLayers, stickers]);
 
   const applyState = (s) => {
     setRotation(s.rotation); setFlipH(s.flipH); setFlipV(s.flipV);
@@ -119,6 +126,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     setExposure(s.exposure); setHighlights(s.highlights); setShadows(s.shadows);
     setTemperature(s.temperature); setTint(s.tint); setSharpness(s.sharpness); setVibrance(s.vibrance);
     setVignette(s.vignette); setGrain(s.grain); setTiltShift(s.tiltShift); setSkinSmoothing(s.skinSmoothing);
+    setBlemishRemoval(s.blemishRemoval); setTeethWhitening(s.teethWhitening); setRedEyeRemoval(s.redEyeRemoval); // NEW
     setTextLayers(s.textLayers.map((l) => ({ ...l })));
     setStickers(s.stickers.map((st) => ({ ...st })));
   };
@@ -143,6 +151,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     setHighlights(0); setShadows(0); setTemperature(0); setTint(0);
     setVibrance(0); setSharpness(0); setVignette(0); setGrain(0);
     setTiltShift(0); setSkinSmoothing(0);
+    setBlemishRemoval(0); setTeethWhitening(0); setRedEyeRemoval(false); // NEW
   };
 
   const autoEnhance = () => {
@@ -176,14 +185,27 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
       });
       ctx.putImageData(imageData, 0, 0);
 
+      // Beauty operations (before effects)
       if (skinSmoothing > 0) {
         const smoothed = applySkinSmoothing(ctx, w, h, skinSmoothing);
         ctx.putImageData(smoothed, 0, 0);
       }
+      if (blemishRemoval > 0) {
+        applyBlemishRemoval(ctx, w, h, blemishRemoval);
+      }
+      if (teethWhitening > 0) {
+        applyTeethWhitening(ctx, w, h, teethWhitening);
+      }
+      if (redEyeRemoval) {
+        applyRedEyeRemoval(ctx, w, h);
+      }
+
+      // Effects
       if (vignette > 0) applyVignette(ctx, w, h, vignette);
       if (tiltShift > 0) applyTiltShift(ctx, w, h, tiltShift);
       if (grain > 0) applyGrain(ctx, w, h, grain);
 
+      // Text / stickers
       textLayers.forEach((layer) => drawTextLayer(ctx, w, h, layer));
       stickers.forEach((s) => {
         ctx.save();
@@ -199,10 +221,10 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     };
     img.src = imageSrc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageSrc, rotation, flipH, flipV, brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance, vignette, grain, tiltShift, skinSmoothing, textLayers, stickers]);
+  }, [imageSrc, rotation, flipH, flipV, brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance, vignette, grain, tiltShift, skinSmoothing, blemishRemoval, teethWhitening, redEyeRemoval, textLayers, stickers]);
 
   // ---------------------------------------------------------------
-  // TEXT & STICKER HANDLERS
+  // TEXT & STICKER HANDLERS (unchanged)
   // ---------------------------------------------------------------
   const addTextLayer = () => {
     const layer = {
@@ -220,7 +242,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
   const removeSticker = (id) => setStickers((p) => p.filter((s) => s.id !== id));
 
   // ---------------------------------------------------------------
-  // CROP OVERLAY — pointer handling
+  // CROP OVERLAY — pointer handling (unchanged)
   // ---------------------------------------------------------------
   const setAspectRect = (a) => {
     setAspect(a);
@@ -472,6 +494,19 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                   </>
                 )}
 
+                {activeTab === 'beauty' && (
+                  <>
+                    <div className="pe-group-label">Retouch</div>
+                    <Slider label="Blemish Removal" value={blemishRemoval} onChange={setBlemishRemoval} min={0} max={100} />
+                    <Slider label="Teeth Whitening" value={teethWhitening} onChange={setTeethWhitening} min={0} max={100} />
+                    <div className="pe-group-label">Correction</div>
+                    <label className="pe-toggle-label">
+                      <input type="checkbox" checked={redEyeRemoval} onChange={(e) => setRedEyeRemoval(e.target.checked)} />
+                      <span>Red‑eye Removal</span>
+                    </label>
+                  </>
+                )}
+
                 {activeTab === 'text' && (
                   <div className="pe-stack">
                     <button type="button" className="pe-add-btn" onClick={addTextLayer}><Plus size={14} /> Add text</button>
@@ -533,7 +568,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
 }
 
 // =====================================================================
-// SLIDER
+// SLIDER (unchanged)
 // =====================================================================
 function Slider({ label, value, onChange, min = -100, max = 100 }) {
   const pct = ((value - min) / (max - min)) * 100;
@@ -559,7 +594,7 @@ function Slider({ label, value, onChange, min = -100, max = 100 }) {
 }
 
 // =====================================================================
-// HISTOGRAM
+// HISTOGRAM (unchanged)
 // =====================================================================
 function Histogram({ data }) {
   if (!data) return <div className="pe-histogram-empty" />;
@@ -590,7 +625,7 @@ function cropClipPath(r) {
 }
 
 // =====================================================================
-// PIXEL PROCESSING (unchanged core logic)
+// PIXEL PROCESSING (unchanged core, plus new beauty functions)
 // =====================================================================
 function applyPixelAdjustments(imageData, o) {
   const data = imageData.data;
@@ -687,7 +722,7 @@ function applyGrain(ctx, w, h, amount) {
 function applySkinSmoothing(ctx, w, h, intensity) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
-  const radius = Math.floor(intensity / 25);
+  const radius = Math.floor(intensity / 20);  // slightly more aggressive
   if (radius < 1) return imageData;
   const copy = new Uint8ClampedArray(data);
   for (let y = radius; y < h - radius; y++) {
@@ -711,6 +746,132 @@ function applySkinSmoothing(ctx, w, h, intensity) {
   return imageData;
 }
 
+// ========= NEW BEAUTY FUNCTIONS =========
+
+/**
+ * Blemish Removal – applies a median filter on skin areas to erase small dark spots.
+ * Intensity controls the radius (0-5 pixels).
+ */
+function applyBlemishRemoval(ctx, w, h, intensity) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  const radius = Math.floor(intensity / 20) + 1; // 1‑6 px radius
+  if (radius < 1) return;
+  const copy = new Uint8ClampedArray(data);
+  const isSkinPixel = (r, g, b) => {
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    return r > 95 && g > 40 && b > 20 && max - min > 15 && Math.abs(r - g) > 15 && r > g && r > b;
+  };
+
+  // Simple median filter: for each skin pixel, collect all neighbour values and take median.
+  const neighbourhood = new Array((2 * radius + 1) ** 2);
+  for (let y = radius; y < h - radius; y++) {
+    for (let x = radius; x < w - radius; x++) {
+      const idx = (y * w + x) * 4;
+      if (!isSkinPixel(data[idx], data[idx+1], data[idx+2])) continue;
+      // Collect each channel
+      let len = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nidx = ((y + dy) * w + (x + dx)) * 4;
+          neighbourhood[len] = copy[nidx];
+          neighbourhood[len + 1] = copy[nidx + 1];
+          neighbourhood[len + 2] = copy[nidx + 2];
+          len += 3;
+        }
+      }
+      // sort and take median for each channel separately – simplified average of middle
+      // We'll use a simpler approach: sort each channel and pick middle value
+      const getMedian = (arr, start, stride) => {
+        const a = [];
+        for (let i = start; i < arr.length; i += 3) a.push(arr[i]);
+        a.sort((a,b) => a - b);
+        return a[Math.floor(a.length / 2)];
+      };
+      data[idx] = getMedian(neighbourhood, 0, 3);
+      data[idx+1] = getMedian(neighbourhood, 1, 3);
+      data[idx+2] = getMedian(neighbourhood, 2, 3);
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+/**
+ * Teeth Whitening – detects yellowish pixels and increases brightness, reduces saturation.
+ */
+function applyTeethWhitening(ctx, w, h, intensity) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  const factor = intensity / 100; // 0‑1
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i], g = data[i+1], b = data[i+2];
+    // Simple teeth detection: high luminance, low saturation, and slightly yellow hue
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const sat = max === 0 ? 0 : (max - min) / max;
+    const hue = (max === r ? ((g - b) / (max - min)) * 60 : max === g ? (2 + (b - r) / (max - min)) * 60 : (4 + (r - g) / (max - min)) * 60);
+    // Teeth are typically bright, low saturation, with hue around 30‑60 (yellowish)
+    if (lum > 180 && sat < 0.2 && hue > 30 && hue < 60) {
+      // Whiten: increase brightness, reduce yellow (i.e., push toward blue), desaturate
+      const whiten = 0.3 * factor;
+      r = r + (255 - r) * whiten;
+      g = g + (255 - g) * whiten * 0.8; // less green boost to avoid greenish
+      b = b + (255 - b) * whiten * 1.2; // extra blue to counteract yellow
+      // Desaturate a bit
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = gray + (r - gray) * (1 - whiten * 0.5);
+      g = gray + (g - gray) * (1 - whiten * 0.5);
+      b = gray + (b - gray) * (1 - whiten * 0.5);
+      data[i] = Math.max(0, Math.min(255, r));
+      data[i+1] = Math.max(0, Math.min(255, g));
+      data[i+2] = Math.max(0, Math.min(255, b));
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+/**
+ * Red‑eye Removal – finds highly red circular regions near skin and reduces redness.
+ */
+function applyRedEyeRemoval(ctx, w, h) {
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  const isSkin = (r,g,b) => {
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    return r > 95 && g > 40 && b > 20 && max - min > 15 && Math.abs(r - g) > 15 && r > g && r > b;
+  };
+  const radius = 3;
+  for (let y = radius; y < h - radius; y++) {
+    for (let x = radius; x < w - radius; x++) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx], g = data[idx+1], b = data[idx+2];
+      // Red‑eye: very red, dark, near skin
+      if (r > 100 && g < 60 && b < 60 && r > g * 1.5 && r > b * 1.5) {
+        // Check if surrounded by skin
+        let skinCount = 0, total = 0;
+        for (let dy = -radius; dy <= radius; dy++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            const nidx = ((y+dy)*w + (x+dx)) * 4;
+            total++;
+            if (isSkin(data[nidx], data[nidx+1], data[nidx+2])) skinCount++;
+          }
+        }
+        if (skinCount > total * 0.4) {
+          // Correct: reduce red, boost green/blue
+          const gray = (g + b) / 2;
+          data[idx] = gray * 0.8; // strongly reduce red
+          data[idx+1] = g * 1.1;
+          data[idx+2] = b * 1.1;
+        }
+      }
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+// =====================================================================
+// TEXT DRAWING (unchanged)
+// =====================================================================
 function drawTextLayer(ctx, w, h, layer) {
   ctx.save();
   const fontSize = layer.fontSize;
@@ -735,7 +896,7 @@ function drawTextLayer(ctx, w, h, layer) {
 }
 
 // =====================================================================
-// STYLES
+// STYLES (unchanged, only added .pe-toggle-label)
 // =====================================================================
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
@@ -812,7 +973,7 @@ const CSS = `
 /* right panel */
 .pe-panel { width: 320px; min-width: 320px; border-left: 1px solid var(--pe-border); background: var(--pe-panel);
   display: flex; flex-direction: column; }
-.pe-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 10px; border-bottom: 1px solid var(--pe-border); }
+.pe-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 10px; border-bottom: 1px solid var(--pe-border); }
 .pe-tab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 4px; background: transparent;
   border: 1px solid transparent; border-radius: 10px; color: var(--pe-text-dim); cursor: pointer; font-size: 11px; font-family: var(--font-body); transition: all .15s; }
 .pe-tab:hover { background: var(--pe-panel-2); color: var(--pe-text); }
@@ -888,6 +1049,9 @@ const CSS = `
 .pe-placed-chip { display: flex; align-items: center; gap: 4px; font-size: 18px; padding: 6px 8px; border-radius: 10px;
   background: var(--pe-panel-2); border: 1px solid var(--pe-border); cursor: pointer; color: var(--pe-text-dim); }
 .pe-placed-chip:hover { border-color: var(--pe-danger); color: var(--pe-danger); }
+
+/* toggle */
+.pe-toggle-label { display: flex; align-items: center; gap: 8px; color: var(--pe-text); font-size: 13px; cursor: pointer; }
 
 /* footer */
 .pe-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
