@@ -64,13 +64,17 @@ const stickerMap: Record<StickerType, string> = {
 
 // Sidebar action descriptor — used to render every icon button with identical
 // geometry (size, radius, icon weight) so nothing in the rail ever drifts
-// out of alignment, no matter how many groups are added later.
+// out of alignment, no matter how many groups are added later. Each action
+// now also carries its own signature accent color (from/to) so the rail
+// reads as a set of distinct, colorful tools rather than one flat gray strip.
 interface SidebarAction {
   id: string;
   label: string;
   icon: React.ReactNode;
   active?: boolean;
   onClick: () => void;
+  from: string;
+  to: string;
 }
 
 const CameraCapture: React.FC = () => {
@@ -686,29 +690,31 @@ const CameraCapture: React.FC = () => {
 
   // ===================== SIDEBAR ACTION GROUPS =====================
   // Every icon in the rail is rendered through the same <IconButton>, at the
-  // same 44×44 box, with the same icon stroke-width — this is what keeps the
-  // whole column pixel-aligned regardless of how many groups are added.
+  // same enlarged box, with the same icon stroke-width — this is what keeps
+  // the whole column pixel-aligned regardless of how many groups are added.
+  // Each action now owns a distinct two-stop gradient (from/to) so the rail
+  // reads as a lively toolbox of colorful, purposeful controls.
   const captureModes: SidebarAction[] = [
-    { id: 'single', label: 'Single shot', icon: <Camera size={20} strokeWidth={1.8} />, active: mode === 'single', onClick: () => setMode('single') },
-    { id: 'timer', label: 'Self-timer', icon: <Timer size={20} strokeWidth={1.8} />, active: mode === 'timer', onClick: () => setMode('timer') },
-    { id: 'burst', label: 'Burst', icon: <SlidersHorizontal size={20} strokeWidth={1.8} />, active: mode === 'burst', onClick: () => setMode('burst') },
+    { id: 'single', label: 'Single shot', icon: <Camera size={26} strokeWidth={1.8} />, active: mode === 'single', onClick: () => setMode('single'), from: '#fbbf24', to: '#f97316' },
+    { id: 'timer', label: 'Self-timer', icon: <Timer size={26} strokeWidth={1.8} />, active: mode === 'timer', onClick: () => setMode('timer'), from: '#fb7185', to: '#e11d48' },
+    { id: 'burst', label: 'Burst', icon: <SlidersHorizontal size={26} strokeWidth={1.8} />, active: mode === 'burst', onClick: () => setMode('burst'), from: '#f87171', to: '#dc2626' },
   ];
 
   const workspaceActions: SidebarAction[] = [
-    { id: 'filters', label: 'Filters', icon: <Palette size={20} strokeWidth={1.8} />, active: showFilters, onClick: () => setShowFilters(!showFilters) },
-    { id: 'gallery', label: 'Gallery', icon: <Images size={20} strokeWidth={1.8} />, onClick: () => setShowGallery(true) },
-    { id: 'gif', label: 'GIF maker', icon: <Film size={20} strokeWidth={1.8} />, onClick: () => setShowGifMaker(true) },
-    { id: 'timelapse', label: 'Time-lapse', icon: <Clock size={20} strokeWidth={1.8} />, onClick: () => setShowTimeLapse(true) },
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon size={20} strokeWidth={1.8} />, onClick: () => setShowSettings(true) },
+    { id: 'filters', label: 'Filters', icon: <Palette size={26} strokeWidth={1.8} />, active: showFilters, onClick: () => setShowFilters(!showFilters), from: '#c084fc', to: '#9333ea' },
+    { id: 'gallery', label: 'Gallery', icon: <Images size={26} strokeWidth={1.8} />, onClick: () => setShowGallery(true), from: '#60a5fa', to: '#2563eb' },
+    { id: 'gif', label: 'GIF maker', icon: <Film size={26} strokeWidth={1.8} />, onClick: () => setShowGifMaker(true), from: '#38bdf8', to: '#0284c7' },
+    { id: 'timelapse', label: 'Time-lapse', icon: <Clock size={26} strokeWidth={1.8} />, onClick: () => setShowTimeLapse(true), from: '#2dd4bf', to: '#0d9488' },
+    { id: 'settings', label: 'Settings', icon: <SettingsIcon size={26} strokeWidth={1.8} />, onClick: () => setShowSettings(true), from: '#a1a1aa', to: '#52525b' },
   ];
 
   const aiActions: SidebarAction[] = [
-    { id: 'face', label: 'Face detection', icon: <ScanFace size={20} strokeWidth={1.8} />, active: faceDetection, onClick: () => setFaceDetection(!faceDetection) },
-    { id: 'blur', label: 'Background blur', icon: <Focus size={20} strokeWidth={1.8} />, active: backgroundBlur, onClick: () => setBackgroundBlur(!backgroundBlur) },
-    { id: 'voice', label: 'Voice control', icon: <Mic size={20} strokeWidth={1.8} />, active: isListening, onClick: () => setIsListening(!isListening) },
-    { id: 'enhance', label: 'Auto-enhance', icon: <Sparkles size={20} strokeWidth={1.8} />, active: autoEnhance, onClick: () => setAutoEnhance(!autoEnhance) },
-    { id: 'histogram', label: 'Histogram', icon: <BarChart3 size={20} strokeWidth={1.8} />, active: showHistogram, onClick: () => setShowHistogram(!showHistogram) },
-    { id: 'grid', label: 'Grid overlay', icon: <Grid3x3 size={20} strokeWidth={1.8} />, active: showGrid, onClick: () => setShowGrid(!showGrid) },
+    { id: 'face', label: 'Face detection', icon: <ScanFace size={26} strokeWidth={1.8} />, active: faceDetection, onClick: () => setFaceDetection(!faceDetection), from: '#f472b6', to: '#db2777' },
+    { id: 'blur', label: 'Background blur', icon: <Focus size={26} strokeWidth={1.8} />, active: backgroundBlur, onClick: () => setBackgroundBlur(!backgroundBlur), from: '#a78bfa', to: '#7c3aed' },
+    { id: 'voice', label: 'Voice control', icon: <Mic size={26} strokeWidth={1.8} />, active: isListening, onClick: () => setIsListening(!isListening), from: '#fb923c', to: '#ea580c' },
+    { id: 'enhance', label: 'Auto-enhance', icon: <Sparkles size={26} strokeWidth={1.8} />, active: autoEnhance, onClick: () => setAutoEnhance(!autoEnhance), from: '#facc15', to: '#ca8a04' },
+    { id: 'histogram', label: 'Histogram', icon: <BarChart3 size={26} strokeWidth={1.8} />, active: showHistogram, onClick: () => setShowHistogram(!showHistogram), from: '#4ade80', to: '#16a34a' },
+    { id: 'grid', label: 'Grid overlay', icon: <Grid3x3 size={26} strokeWidth={1.8} />, active: showGrid, onClick: () => setShowGrid(!showGrid), from: '#22d3ee', to: '#0891b2' },
   ];
 
   const IconButton: React.FC<{ action: SidebarAction }> = ({ action }) => (
@@ -718,6 +724,12 @@ const CameraCapture: React.FC = () => {
       onClick={action.onClick}
       aria-label={action.label}
       aria-pressed={!!action.active}
+      style={{
+        // @ts-ignore custom properties
+        '--accent-from': action.from,
+        '--accent-to': action.to,
+        color: action.active ? '#ffffff' : action.from,
+      }}
     >
       <span className="sidebar-btn-icon">{action.icon}</span>
       <span className="sidebar-btn-tip">{action.label}</span>
@@ -770,14 +782,15 @@ const CameraCapture: React.FC = () => {
 
         .sidebar-btn {
           position: relative;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 12px;
+          background: rgba(255,255,255,0.05);
+          border: 1.5px solid rgba(255,255,255,0.08);
+          border-radius: 14px;
           cursor: pointer;
           color: #b9b9bd;
-          transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
-          width: 46px;
-          height: 46px;
+          transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+                      transform 0.14s ease, box-shadow 0.2s ease;
+          width: 56px;
+          height: 56px;
           display: flex;
           justify-content: center;
           align-items: center;
@@ -789,20 +802,33 @@ const CameraCapture: React.FC = () => {
           justify-content: center;
           align-items: center;
           line-height: 0;
+          filter: drop-shadow(0 0 0 rgba(0,0,0,0));
+          transition: filter 0.18s ease, transform 0.18s ease;
         }
         .sidebar-btn:hover {
-          background: rgba(255,255,255,0.1);
-          color: #fff;
-          transform: translateY(-1px);
+          background: rgba(255,255,255,0.09);
+          border-color: color-mix(in srgb, var(--accent-from) 55%, transparent);
+          color: var(--accent-from);
+          transform: translateY(-2px) scale(1.04);
+        }
+        .sidebar-btn:hover .sidebar-btn-icon {
+          filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent-from) 65%, transparent));
         }
         .sidebar-btn:active {
-          transform: translateY(0);
+          transform: translateY(0) scale(0.97);
         }
         .sidebar-btn.active {
-          border-color: #f5576c;
-          background: linear-gradient(135deg, rgba(240,147,251,0.22) 0%, rgba(245,87,108,0.22) 100%);
+          border-color: color-mix(in srgb, var(--accent-to) 70%, transparent);
+          background: linear-gradient(135deg, var(--accent-from) 0%, var(--accent-to) 100%);
           color: #ffffff;
-          box-shadow: 0 0 0 1px rgba(245, 87, 108, 0.35), 0 4px 14px rgba(245, 87, 108, 0.25);
+          box-shadow:
+            0 0 0 1px color-mix(in srgb, var(--accent-to) 45%, transparent),
+            0 6px 18px color-mix(in srgb, var(--accent-to) 55%, transparent),
+            0 0 22px color-mix(in srgb, var(--accent-from) 40%, transparent);
+        }
+        .sidebar-btn.active .sidebar-btn-icon {
+          filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35));
+          transform: scale(1.05);
         }
         .sidebar-btn.active::after {
           content: '';
@@ -811,12 +837,13 @@ const CameraCapture: React.FC = () => {
           top: 50%;
           transform: translateY(-50%);
           width: 3px;
-          height: 18px;
+          height: 22px;
           border-radius: 3px;
-          background: linear-gradient(180deg, #f093fb 0%, #f5576c 100%);
+          background: linear-gradient(180deg, var(--accent-from) 0%, var(--accent-to) 100%);
+          box-shadow: 0 0 10px color-mix(in srgb, var(--accent-from) 70%, transparent);
         }
         .sidebar-btn:focus-visible {
-          outline: 2px solid #f5576c;
+          outline: 2px solid var(--accent-from);
           outline-offset: 2px;
         }
 
@@ -863,8 +890,8 @@ const CameraCapture: React.FC = () => {
           font-size: 12px;
           font-weight: 500;
           cursor: pointer;
-          width: 46px;
-          height: 32px;
+          width: 56px;
+          height: 34px;
           text-align: center;
           appearance: none;
           transition: border-color 0.16s ease, background 0.16s ease;
@@ -896,7 +923,7 @@ const CameraCapture: React.FC = () => {
 
       {/* Header */}
       <div style={styles.header}>
-        <h1 style={styles.title}>📷Web Digital Camera</h1>
+        <h1 style={styles.title}>📷 Web Digital Camera</h1>
         <div style={styles.liveIndicator}>
           <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} style={styles.redDot} />
           <span style={styles.liveText}>CAMERA</span>
@@ -1282,13 +1309,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '16px 12px',
+    padding: '18px 14px',
     background: 'rgba(20,20,20,0.7)',
     backdropFilter: 'blur(20px)',
-    borderRadius: '20px',
+    borderRadius: '22px',
     border: '1px solid rgba(255,255,255,0.06)',
-    minWidth: '78px',
-    maxWidth: '78px',
+    minWidth: '90px',
+    maxWidth: '90px',
     gap: '10px',
     height: 'fit-content',
     position: 'sticky',
@@ -1299,7 +1326,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '8px',
+    gap: '10px',
     width: '100%',
   },
   sidebarDivider: {
