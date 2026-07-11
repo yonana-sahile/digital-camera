@@ -31,7 +31,7 @@ import TimeLapse from './TimeLapse';
 import PhotoEditor from './PhotoEditor';
 import Settings from './Settings';
 
-// --- Type definitions (unchanged) ---
+// --- Type definitions ---
 interface UploadResponse {
   message: string;
   data?: any;
@@ -49,7 +49,31 @@ type FilterType =
   | 'cool'
   | 'vivid'
   | 'dramatic'
-  | 'vignette';
+  | 'vignette'
+  | 'fade'
+  | 'clarendon'
+  | 'lark'
+  | 'gingham'
+  | 'juno'
+  | 'ludwig'
+  | 'reyes'
+  | 'valencia'
+  | 'xpro2'
+  | 'willow'
+  | 'lo-fi'
+  | 'earlybird'
+  | 'toaster'
+  | '1977'
+  | 'aden'
+  | 'hudson'
+  | 'kelvin'
+  | 'mayfair'
+  | 'nashville'
+  | 'perpetua'
+  | 'rise'
+  | 'sierra'
+  | 'sutro'
+  | 'walden';
 
 type CaptureMode = 'single' | 'timer' | 'burst';
 type StickerType = 'none' | 'sunglasses' | 'hat' | 'moustache' | 'dogears';
@@ -62,11 +86,6 @@ const stickerMap: Record<StickerType, string> = {
   dogears: '🐶',
 };
 
-// Sidebar action descriptor — used to render every icon button with identical
-// geometry (size, radius, icon weight) so nothing in the rail ever drifts
-// out of alignment, no matter how many groups are added later. Each action
-// now also carries its own signature accent color (from/to) so the rail
-// reads as a set of distinct, colorful tools rather than one flat gray strip.
 interface SidebarAction {
   id: string;
   label: string;
@@ -77,9 +96,85 @@ interface SidebarAction {
   to: string;
 }
 
-/**
- * Flips a canvas horizontally (mirrors it) so the captured image matches the live preview.
- */
+const filterStyles: Record<FilterType, string> = {
+  none: 'none',
+  grayscale: 'grayscale(100%)',
+  sepia: 'sepia(100%)',
+  invert: 'invert(100%)',
+  blur: 'blur(4px)',
+  vintage: 'sepia(50%) contrast(1.2) brightness(0.9) saturate(0.8)',
+  'hue-rotate': 'hue-rotate(180deg)',
+  warm: 'sepia(30%) brightness(1.1) saturate(1.3)',
+  cool: 'brightness(1.05) saturate(0.8) hue-rotate(15deg)',
+  vivid: 'saturate(1.8) contrast(1.1)',
+  dramatic: 'contrast(1.5) saturate(0.9) brightness(0.9)',
+  vignette: 'brightness(1.1) contrast(1.2) drop-shadow(0 0 100px rgba(0,0,0,0.5))',
+  fade: 'brightness(1.1) contrast(0.85) saturate(0.8) sepia(0.1)',
+  clarendon: 'brightness(1.1) contrast(1.2) saturate(1.35)',
+  lark: 'brightness(1.15) contrast(0.85) saturate(0.85) hue-rotate(2deg)',
+  gingham: 'brightness(1.05) contrast(0.9) saturate(0.85) hue-rotate(5deg)',
+  juno: 'brightness(1.1) contrast(1.1) saturate(1.3) hue-rotate(-3deg)',
+  ludwig: 'brightness(1.05) contrast(0.95) saturate(0.9) sepia(0.05)',
+  reyes: 'brightness(1.1) contrast(0.9) saturate(0.75) sepia(0.15)',
+  valencia: 'brightness(1.1) contrast(1.05) saturate(1.15) sepia(0.08)',
+  xpro2: 'brightness(1.05) contrast(1.15) saturate(1.2) sepia(0.1)',
+  willow: 'brightness(1.1) contrast(0.95) saturate(0.75) sepia(0.05) hue-rotate(2deg)',
+  'lo-fi': 'brightness(1.1) contrast(1.3) saturate(1.5)',
+  earlybird: 'brightness(1.1) contrast(0.9) saturate(1.1) sepia(0.2) hue-rotate(-2deg)',
+  toaster: 'brightness(1.05) contrast(0.95) saturate(0.85) sepia(0.3) hue-rotate(-5deg)',
+  '1977': 'brightness(1.1) contrast(1.05) saturate(1.1) hue-rotate(-5deg)',
+  aden: 'brightness(1.1) contrast(0.9) saturate(0.85) sepia(0.1) hue-rotate(2deg)',
+  hudson: 'brightness(1.2) contrast(0.9) saturate(1.1) hue-rotate(-5deg)',
+  kelvin: 'brightness(1.1) contrast(1.05) saturate(1.2) sepia(0.3) hue-rotate(10deg)',
+  mayfair: 'brightness(1.1) contrast(1.05) saturate(1.15) hue-rotate(-3deg)',
+  nashville: 'brightness(1.1) contrast(0.9) saturate(0.85) sepia(0.15) hue-rotate(5deg)',
+  perpetua: 'brightness(1.1) contrast(1.05) saturate(1.15) sepia(0.05)',
+  rise: 'brightness(1.05) contrast(0.9) saturate(0.9) sepia(0.2) hue-rotate(3deg)',
+  sierra: 'brightness(1.1) contrast(0.9) saturate(0.85) sepia(0.1)',
+  sutro: 'brightness(1.05) contrast(1.1) saturate(1.1) sepia(0.15) hue-rotate(-3deg)',
+  walden: 'brightness(1.1) contrast(0.9) saturate(0.85) sepia(0.1) hue-rotate(2deg)',
+};
+
+const filterLabels: Record<FilterType, string> = {
+  none: 'Normal',
+  grayscale: 'B&W',
+  sepia: 'Sepia',
+  invert: 'Invert',
+  blur: 'Blur',
+  vintage: 'Vintage',
+  'hue-rotate': 'Hue',
+  warm: 'Warm',
+  cool: 'Cool',
+  vivid: 'Vivid',
+  dramatic: 'Dramatic',
+  vignette: 'Vignette',
+  fade: 'Fade',
+  clarendon: 'Clarendon',
+  lark: 'Lark',
+  gingham: 'Gingham',
+  juno: 'Juno',
+  ludwig: 'Ludwig',
+  reyes: 'Reyes',
+  valencia: 'Valencia',
+  xpro2: 'X-Pro II',
+  willow: 'Willow',
+  'lo-fi': 'Lo‑Fi',
+  earlybird: 'Earlybird',
+  toaster: 'Toaster',
+  '1977': '1977',
+  aden: 'Aden',
+  hudson: 'Hudson',
+  kelvin: 'Kelvin',
+  mayfair: 'Mayfair',
+  nashville: 'Nashville',
+  perpetua: 'Perpetua',
+  rise: 'Rise',
+  sierra: 'Sierra',
+  sutro: 'Sutro',
+  walden: 'Walden',
+};
+
+// Mirror helper (capture fix)
 function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = canvas.width;
@@ -97,7 +192,7 @@ function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
 }
 
 const CameraCapture: React.FC = () => {
-  // --- All state (exactly as before) ---
+  // --- State ---
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgSrc, setImgSrc] = useState<string | null>(null);
@@ -135,42 +230,7 @@ const CameraCapture: React.FC = () => {
   const watermarkImgRef = useRef<HTMLImageElement | null>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/captures/';
-  const videoConstraints = {
-    width: 1280,
-    height: 720,
-    facingMode: 'user',
-  };
-
-  // --- Filters (unchanged) ---
-  const filterStyles: Record<FilterType, string> = {
-    none: 'none',
-    grayscale: 'grayscale(100%)',
-    sepia: 'sepia(100%)',
-    invert: 'invert(100%)',
-    blur: 'blur(4px)',
-    vintage: 'sepia(50%) contrast(1.2) brightness(0.9) saturate(0.8)',
-    'hue-rotate': 'hue-rotate(180deg)',
-    warm: 'sepia(30%) brightness(1.1) saturate(1.3)',
-    cool: 'brightness(1.05) saturate(0.8) hue-rotate(15deg)',
-    vivid: 'saturate(1.8) contrast(1.1)',
-    dramatic: 'contrast(1.5) saturate(0.9) brightness(0.9)',
-    vignette: 'brightness(1.1) contrast(1.2) drop-shadow(0 0 100px rgba(0,0,0,0.5))',
-  };
-
-  const filterLabels: Record<FilterType, string> = {
-    none: 'Normal',
-    grayscale: 'B&W',
-    sepia: 'Sepia',
-    invert: 'Invert',
-    blur: 'Blur',
-    vintage: 'Vintage',
-    'hue-rotate': 'Hue',
-    warm: 'Warm',
-    cool: 'Cool',
-    vivid: 'Vivid',
-    dramatic: 'Dramatic',
-    vignette: 'Vignette',
-  };
+  const videoConstraints = { width: 1280, height: 720, facingMode: 'user' };
 
   // --- Notifications ---
   const showNotification = (text: string, type: 'success' | 'error' | 'info') => {
@@ -178,38 +238,24 @@ const CameraCapture: React.FC = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // --- Auto‑enhance (unchanged) ---
+  // --- Auto‑enhance ---
   const applyAutoEnhance = (imageData: ImageData): ImageData => {
     const data = imageData.data;
-    let minR = 255,
-      maxR = 0,
-      minG = 255,
-      maxG = 0,
-      minB = 255,
-      maxB = 0;
+    let minR = 255, maxR = 0, minG = 255, maxG = 0, minB = 255, maxB = 0;
     for (let i = 0; i < data.length; i += 4) {
-      const r = data[i],
-        g = data[i + 1],
-        b = data[i + 2];
-      if (r < minR) minR = r;
-      if (r > maxR) maxR = r;
-      if (g < minG) minG = g;
-      if (g > maxG) maxG = g;
-      if (b < minB) minB = b;
-      if (b > maxB) maxB = b;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      if (r < minR) minR = r; if (r > maxR) maxR = r;
+      if (g < minG) minG = g; if (g > maxG) maxG = g;
+      if (b < minB) minB = b; if (b > maxB) maxB = b;
     }
-    const rangeR = maxR - minR || 1;
-    const rangeG = maxG - minG || 1;
-    const rangeB = maxB - minB || 1;
+    const rangeR = maxR - minR || 1, rangeG = maxG - minG || 1, rangeB = maxB - minB || 1;
     for (let i = 0; i < data.length; i += 4) {
       data[i] = ((data[i] - minR) / rangeR) * 255;
       data[i + 1] = ((data[i + 1] - minG) / rangeG) * 255;
       data[i + 2] = ((data[i + 2] - minB) / rangeB) * 255;
     }
     for (let i = 0; i < data.length; i += 4) {
-      const r = data[i],
-        g = data[i + 1],
-        b = data[i + 2];
+      const r = data[i], g = data[i + 1], b = data[i + 2];
       const gray = 0.299 * r + 0.587 * g + 0.114 * b;
       const boost = 1.2;
       data[i] = Math.min(255, gray + (r - gray) * boost);
@@ -219,25 +265,18 @@ const CameraCapture: React.FC = () => {
     return imageData;
   };
 
-  // --- Capture (with mirror fix) ---
+  // --- Capture ---
   const captureWithFilter = useCallback((): string | null => {
     const video = webcamRef.current?.video;
     if (!video) return null;
-
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
-    // Draw the raw video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    flipCanvasHorizontally(canvas);  // mirror fix
 
-    // Flip horizontally to match the live mirror preview
-    flipCanvasHorizontally(canvas);
-
-    // --- rest of the processing (unchanged) ---
     if (backgroundBlur) {
       let faceBox = null;
       if (faceDetection && faceDetections.length > 0) {
@@ -245,8 +284,7 @@ const CameraCapture: React.FC = () => {
         faceBox = det.box;
       }
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
+      tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
       const tempCtx = tempCanvas.getContext('2d');
       if (tempCtx) {
         tempCtx.drawImage(canvas, 0, 0);
@@ -257,14 +295,10 @@ const CameraCapture: React.FC = () => {
         if (faceBox) {
           const { x, y, width, height } = faceBox;
           const pad = 0.3;
-          const cx = x + width / 2;
-          const cy = y + height / 2;
-          const newW = width * (1 + pad);
-          const newH = height * (1 + pad);
-          const sx = cx - newW / 2;
-          const sy = cy - newH / 2;
-          const srcX = Math.max(0, sx);
-          const srcY = Math.max(0, sy);
+          const cx = x + width / 2, cy = y + height / 2;
+          const newW = width * (1 + pad), newH = height * (1 + pad);
+          const sx = cx - newW / 2, sy = cy - newH / 2;
+          const srcX = Math.max(0, sx), srcY = Math.max(0, sy);
           const srcW = Math.min(canvas.width, sx + newW) - srcX;
           const srcH = Math.min(canvas.height, sy + newH) - srcY;
           ctx.drawImage(tempCanvas, srcX, srcY, srcW, srcH, srcX, srcY, srcW, srcH);
@@ -280,8 +314,7 @@ const CameraCapture: React.FC = () => {
 
     if (activeFilter !== 'none') {
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
+      tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
       const tempCtx = tempCanvas.getContext('2d');
       if (tempCtx) {
         tempCtx.drawImage(canvas, 0, 0);
@@ -295,19 +328,13 @@ const CameraCapture: React.FC = () => {
     if (selectedSticker !== 'none' && faceDetections.length > 0) {
       const detection = faceDetections[0];
       const box = detection.box;
-      const left = box.x,
-        top = box.y,
-        width = box.width,
-        height = box.height;
-      const centerX = left + width / 2;
-      const centerY = top + height / 2;
+      const left = box.x, top = box.y, width = box.width, height = box.height;
+      const centerX = left + width / 2, centerY = top + height / 2;
       const fontSize = Math.min(width, height) * 0.8;
       ctx.font = `${fontSize}px serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = 'white';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10;
       ctx.fillText(stickerMap[selectedSticker], centerX, centerY);
       ctx.shadowBlur = 0;
     }
@@ -315,63 +342,40 @@ const CameraCapture: React.FC = () => {
     if (watermarkImgRef.current) {
       const img = watermarkImgRef.current;
       const margin = 20;
-      let x = 0,
-        y = 0;
-      const w = img.width,
-        h = img.height;
+      let x = 0, y = 0;
+      const w = img.width, h = img.height;
       let scale = 1;
       if (w > 200) scale = 200 / w;
-      const drawW = w * scale;
-      const drawH = h * scale;
-
+      const drawW = w * scale, drawH = h * scale;
       switch (watermarkPosition) {
-        case 'bottom-right':
-          x = canvas.width - drawW - margin;
-          y = canvas.height - drawH - margin;
-          break;
-        case 'bottom-left':
-          x = margin;
-          y = canvas.height - drawH - margin;
-          break;
-        case 'top-right':
-          x = canvas.width - drawW - margin;
-          y = margin;
-          break;
-        case 'top-left':
-          x = margin;
-          y = margin;
-          break;
-        case 'center':
-          x = (canvas.width - drawW) / 2;
-          y = (canvas.height - drawH) / 2;
-          break;
+        case 'bottom-right': x = canvas.width - drawW - margin; y = canvas.height - drawH - margin; break;
+        case 'bottom-left': x = margin; y = canvas.height - drawH - margin; break;
+        case 'top-right': x = canvas.width - drawW - margin; y = margin; break;
+        case 'top-left': x = margin; y = margin; break;
+        case 'center': x = (canvas.width - drawW) / 2; y = (canvas.height - drawH) / 2; break;
       }
       ctx.globalAlpha = watermarkOpacity / 100;
       ctx.drawImage(img, x, y, drawW, drawH);
       ctx.globalAlpha = 1.0;
     } else if (watermarkText.trim()) {
       ctx.font = 'bold 24px Inter, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
-      ctx.shadowColor = 'rgba(0,0,0,0.7)';
-      ctx.shadowBlur = 10;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 10;
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.fillText(watermarkText, canvas.width - 20, canvas.height - 20);
       ctx.shadowBlur = 0;
     }
-
     return canvas.toDataURL('image/jpeg');
-  }, [
-    activeFilter,
-    autoEnhance,
-    watermarkText,
-    backgroundBlur,
-    selectedSticker,
-    faceDetections,
-    faceDetection,
-    watermarkPosition,
-    watermarkOpacity,
-  ]);
+  },
+           [activeFilter,
+           autoEnhance,
+           watermarkText,
+            backgroundBlur,
+             selectedSticker,
+            faceDetections,
+             faceDetection,
+             watermarkPosition,
+            watermarkOpacity]);
 
   // --- Gallery save (unchanged) ---
   const savePhotoToGallery = (dataURL: string) => {
@@ -1155,60 +1159,84 @@ const CameraCapture: React.FC = () => {
 
       {/* Filter sidebar (slide‑in) */}
       <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            style={styles.filterSidebar}
-            initial={{ x: -300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -300, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+  {showFilters && (
+    <motion.div
+      style={styles.filterSidebar}
+      initial={{ x: -300, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -300, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+    >
+      <div style={styles.sidebarHeader}>
+        <span>Filters</span>
+        <button onClick={() => setShowFilters(false)} style={styles.closeSidebar}>
+          <X size={18} strokeWidth={2} />
+        </button>
+      </div>
+      <div style={styles.filterList}>
+        {([
+          'none',
+          'grayscale',
+          'sepia',
+          'invert',
+          'blur',
+          'vintage',
+          'hue-rotate',
+          'warm',
+          'cool',
+          'vivid',
+          'dramatic',
+          'vignette',
+          'fade',
+          'clarendon',
+          'lark',
+          'gingham',
+          'juno',
+          'ludwig',
+          'reyes',
+          'valencia',
+          'xpro2',
+          'willow',
+          'lo-fi',
+          'earlybird',
+          'toaster',
+          '1977',
+          'aden',
+          'hudson',
+          'kelvin',
+          'mayfair',
+          'nashville',
+          'perpetua',
+          'rise',
+          'sierra',
+          'sutro',
+          'walden',
+        ] as FilterType[]).map((filter) => (
+          <button
+            key={filter}
+            className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
+            onClick={() => {
+              setActiveFilter(filter);
+              setShowFilters(false);
+            }}
           >
-            <div style={styles.sidebarHeader}>
-              <span>Filters</span>
-              <button onClick={() => setShowFilters(false)} style={styles.closeSidebar}>
-                <X size={18} strokeWidth={2} />
-              </button>
-            </div>
-            <div style={styles.filterList}>
-              {([
-                'none',
-                'grayscale',
-                'sepia',
-                'invert',
-                'blur',
-                'vintage',
-                'hue-rotate',
-                'warm',
-                'cool',
-                'vivid',
-                'dramatic',
-                'vignette',
-              ] as FilterType[]).map((filter) => (
-                <button
-                  key={filter}
-                  className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveFilter(filter);
-                    setShowFilters(false);
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '8px',
-                      backgroundImage: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                      filter: filterStyles[filter],
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={styles.filterLabel}>{filterLabels[filter]}</span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                backgroundImage: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                filter: filterStyles[filter],
+                flexShrink: 0,
+              }}
+            />
+            <span style={styles.filterLabel}>{filterLabels[filter]}</span>
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
       {/* Modals */}
       <PhotoGallery isOpen={showGallery} onClose={() => setShowGallery(false)} />
