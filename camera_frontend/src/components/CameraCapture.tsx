@@ -77,6 +77,25 @@ interface SidebarAction {
   to: string;
 }
 
+/**
+ * Flips a canvas horizontally (mirrors it) so the captured image matches the live preview.
+ */
+function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+  const tempCtx = tempCanvas.getContext('2d');
+  if (!tempCtx) return;
+  tempCtx.translate(canvas.width, 0);
+  tempCtx.scale(-1, 1);
+  tempCtx.drawImage(canvas, 0, 0);
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(tempCanvas, 0, 0);
+  }
+}
+
 const CameraCapture: React.FC = () => {
   // --- All state (exactly as before) ---
   const webcamRef = useRef<Webcam>(null);
@@ -200,7 +219,7 @@ const CameraCapture: React.FC = () => {
     return imageData;
   };
 
-  // --- Capture (unchanged) ---
+  // --- Capture (with mirror fix) ---
   const captureWithFilter = useCallback((): string | null => {
     const video = webcamRef.current?.video;
     if (!video) return null;
@@ -212,8 +231,13 @@ const CameraCapture: React.FC = () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
+    // Draw the raw video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    // Flip horizontally to match the live mirror preview
+    flipCanvasHorizontally(canvas);
+
+    // --- rest of the processing (unchanged) ---
     if (backgroundBlur) {
       let faceBox = null;
       if (faceDetection && faceDetections.length > 0) {
@@ -689,11 +713,6 @@ const CameraCapture: React.FC = () => {
   }, [imgSrc, isCapturing, startCaptureSequence]);
 
   // ===================== SIDEBAR ACTION GROUPS =====================
-  // Every icon in the rail is rendered through the same <IconButton>, at the
-  // same enlarged box, with the same icon stroke-width — this is what keeps
-  // the whole column pixel-aligned regardless of how many groups are added.
-  // Each action now owns a distinct two-stop gradient (from/to) so the rail
-  // reads as a lively toolbox of colorful, purposeful controls.
   const captureModes: SidebarAction[] = [
     { id: 'single', label: 'Single shot', icon: <Camera size={26} strokeWidth={1.8} />, active: mode === 'single', onClick: () => setMode('single'), from: '#fbbf24', to: '#f97316' },
     { id: 'timer', label: 'Self-timer', icon: <Timer size={26} strokeWidth={1.8} />, active: mode === 'timer', onClick: () => setMode('timer'), from: '#fb7185', to: '#e11d48' },
