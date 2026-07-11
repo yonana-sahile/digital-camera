@@ -3,6 +3,28 @@ import Webcam from 'react-webcam';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as faceapi from 'face-api.js';
+import {
+  Camera,
+  Timer,
+  SlidersHorizontal,
+  Palette,
+  Images,
+  Film,
+  Clock,
+  Settings as SettingsIcon,
+  ScanFace,
+  Focus,
+  Mic,
+  Sparkles,
+  BarChart3,
+  Grid3x3,
+  RotateCcw,
+  Download,
+  Share2,
+  Pencil,
+  UploadCloud,
+  X,
+} from 'lucide-react';
 import PhotoGallery from './PhotoGallery';
 import GifMaker from './GifMaker';
 import TimeLapse from './TimeLapse';
@@ -39,6 +61,17 @@ const stickerMap: Record<StickerType, string> = {
   moustache: '🧔',
   dogears: '🐶',
 };
+
+// Sidebar action descriptor — used to render every icon button with identical
+// geometry (size, radius, icon weight) so nothing in the rail ever drifts
+// out of alignment, no matter how many groups are added later.
+interface SidebarAction {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  active?: boolean;
+  onClick: () => void;
+}
 
 const CameraCapture: React.FC = () => {
   // --- All state (exactly as before) ---
@@ -651,20 +684,62 @@ const CameraCapture: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [imgSrc, isCapturing, startCaptureSequence]);
 
+  // ===================== SIDEBAR ACTION GROUPS =====================
+  // Every icon in the rail is rendered through the same <IconButton>, at the
+  // same 44×44 box, with the same icon stroke-width — this is what keeps the
+  // whole column pixel-aligned regardless of how many groups are added.
+  const captureModes: SidebarAction[] = [
+    { id: 'single', label: 'Single shot', icon: <Camera size={20} strokeWidth={1.8} />, active: mode === 'single', onClick: () => setMode('single') },
+    { id: 'timer', label: 'Self-timer', icon: <Timer size={20} strokeWidth={1.8} />, active: mode === 'timer', onClick: () => setMode('timer') },
+    { id: 'burst', label: 'Burst', icon: <SlidersHorizontal size={20} strokeWidth={1.8} />, active: mode === 'burst', onClick: () => setMode('burst') },
+  ];
+
+  const workspaceActions: SidebarAction[] = [
+    { id: 'filters', label: 'Filters', icon: <Palette size={20} strokeWidth={1.8} />, active: showFilters, onClick: () => setShowFilters(!showFilters) },
+    { id: 'gallery', label: 'Gallery', icon: <Images size={20} strokeWidth={1.8} />, onClick: () => setShowGallery(true) },
+    { id: 'gif', label: 'GIF maker', icon: <Film size={20} strokeWidth={1.8} />, onClick: () => setShowGifMaker(true) },
+    { id: 'timelapse', label: 'Time-lapse', icon: <Clock size={20} strokeWidth={1.8} />, onClick: () => setShowTimeLapse(true) },
+    { id: 'settings', label: 'Settings', icon: <SettingsIcon size={20} strokeWidth={1.8} />, onClick: () => setShowSettings(true) },
+  ];
+
+  const aiActions: SidebarAction[] = [
+    { id: 'face', label: 'Face detection', icon: <ScanFace size={20} strokeWidth={1.8} />, active: faceDetection, onClick: () => setFaceDetection(!faceDetection) },
+    { id: 'blur', label: 'Background blur', icon: <Focus size={20} strokeWidth={1.8} />, active: backgroundBlur, onClick: () => setBackgroundBlur(!backgroundBlur) },
+    { id: 'voice', label: 'Voice control', icon: <Mic size={20} strokeWidth={1.8} />, active: isListening, onClick: () => setIsListening(!isListening) },
+    { id: 'enhance', label: 'Auto-enhance', icon: <Sparkles size={20} strokeWidth={1.8} />, active: autoEnhance, onClick: () => setAutoEnhance(!autoEnhance) },
+    { id: 'histogram', label: 'Histogram', icon: <BarChart3 size={20} strokeWidth={1.8} />, active: showHistogram, onClick: () => setShowHistogram(!showHistogram) },
+    { id: 'grid', label: 'Grid overlay', icon: <Grid3x3 size={20} strokeWidth={1.8} />, active: showGrid, onClick: () => setShowGrid(!showGrid) },
+  ];
+
+  const IconButton: React.FC<{ action: SidebarAction }> = ({ action }) => (
+    <button
+      key={action.id}
+      className={`sidebar-btn ${action.active ? 'active' : ''}`}
+      onClick={action.onClick}
+      aria-label={action.label}
+      aria-pressed={!!action.active}
+    >
+      <span className="sidebar-btn-icon">{action.icon}</span>
+      <span className="sidebar-btn-tip">{action.label}</span>
+    </button>
+  );
+
   // ===================== RENDER =====================
   return (
     <div style={styles.pageContainer}>
       <style>{`
+        * { box-sizing: border-box; }
+
         .filter-btn {
-          background: rgba(255,255,255,0.05);
-          border: 2px solid transparent;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid transparent;
           border-radius: 12px;
           padding: 8px 12px;
           cursor: pointer;
           display: flex;
           align-items: center;
           gap: 12px;
-          transition: all 0.2s ease;
+          transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
           width: 100%;
         }
         .filter-btn.active {
@@ -672,32 +747,131 @@ const CameraCapture: React.FC = () => {
           background: rgba(245, 87, 108, 0.15);
         }
         .filter-btn:hover {
-          background: rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.09);
+          transform: translateX(2px);
         }
+
         .mode-btn.active {
           background: rgba(245, 87, 108, 0.2);
           border-color: #f5576c;
         }
-        .sidebar-btn {
-          background: rgba(255,255,255,0.05);
-          border: 2px solid transparent;
-          border-radius: 12px;
-          padding: 8px;
-          font-size: 22px;
-          cursor: pointer;
-          color: #ccc;
-          transition: all 0.2s;
+
+        /* ---------- Sidebar icon rail ---------- */
+        .sidebar-group-label {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+          color: #6b6b6f;
+          padding: 2px 4px 4px;
           width: 100%;
+          text-align: left;
+        }
+
+        .sidebar-btn {
+          position: relative;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 12px;
+          cursor: pointer;
+          color: #b9b9bd;
+          transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
+          width: 46px;
+          height: 46px;
           display: flex;
           justify-content: center;
           align-items: center;
+          padding: 0;
+          flex-shrink: 0;
+        }
+        .sidebar-btn-icon {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          line-height: 0;
         }
         .sidebar-btn:hover {
           background: rgba(255,255,255,0.1);
+          color: #fff;
+          transform: translateY(-1px);
+        }
+        .sidebar-btn:active {
+          transform: translateY(0);
         }
         .sidebar-btn.active {
           border-color: #f5576c;
-          background: rgba(245, 87, 108, 0.15);
+          background: linear-gradient(135deg, rgba(240,147,251,0.22) 0%, rgba(245,87,108,0.22) 100%);
+          color: #ffffff;
+          box-shadow: 0 0 0 1px rgba(245, 87, 108, 0.35), 0 4px 14px rgba(245, 87, 108, 0.25);
+        }
+        .sidebar-btn.active::after {
+          content: '';
+          position: absolute;
+          left: -11px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 3px;
+          height: 18px;
+          border-radius: 3px;
+          background: linear-gradient(180deg, #f093fb 0%, #f5576c 100%);
+        }
+        .sidebar-btn:focus-visible {
+          outline: 2px solid #f5576c;
+          outline-offset: 2px;
+        }
+
+        /* Tooltip */
+        .sidebar-btn-tip {
+          position: absolute;
+          left: calc(100% + 12px);
+          top: 50%;
+          transform: translateY(-50%) translateX(-4px);
+          background: #1c1c1f;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 500;
+          padding: 6px 10px;
+          border-radius: 8px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+          border: 1px solid rgba(255,255,255,0.08);
+          transition: opacity 0.14s ease, transform 0.14s ease;
+          z-index: 40;
+        }
+        .sidebar-btn-tip::before {
+          content: '';
+          position: absolute;
+          right: 100%;
+          top: 50%;
+          transform: translateY(-50%);
+          border: 5px solid transparent;
+          border-right-color: #1c1c1f;
+        }
+        .sidebar-btn:hover .sidebar-btn-tip {
+          opacity: 1;
+          transform: translateY(-50%) translateX(0);
+        }
+
+        .sidebar-select {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 10px;
+          padding: 8px 6px;
+          color: white;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          width: 46px;
+          height: 32px;
+          text-align: center;
+          appearance: none;
+          transition: border-color 0.16s ease, background 0.16s ease;
+        }
+        .sidebar-select:hover {
+          background: rgba(255,255,255,0.1);
+          border-color: rgba(255,255,255,0.2);
         }
       `}</style>
 
@@ -722,10 +896,10 @@ const CameraCapture: React.FC = () => {
 
       {/* Header */}
       <div style={styles.header}>
-        <h1 style={styles.title}>📷 AdwaShield</h1>
+        <h1 style={styles.title}>📷Web Digital Camera</h1>
         <div style={styles.liveIndicator}>
           <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} style={styles.redDot} />
-          <span style={styles.liveText}>LIVE</span>
+          <span style={styles.liveText}>CAMERA</span>
         </div>
       </div>
 
@@ -735,126 +909,35 @@ const CameraCapture: React.FC = () => {
         <div style={styles.sidebar}>
           {/* Capture modes */}
           <div style={styles.sidebarGroup}>
-            <button
-              className={`sidebar-btn ${mode === 'single' ? 'active' : ''}`}
-              onClick={() => setMode('single')}
-              title="Single"
-            >
-              📸
-            </button>
-            <button
-              className={`sidebar-btn ${mode === 'timer' ? 'active' : ''}`}
-              onClick={() => setMode('timer')}
-              title="Timer"
-            >
-              ⏱️
-            </button>
-            <button
-              className={`sidebar-btn ${mode === 'burst' ? 'active' : ''}`}
-              onClick={() => setMode('burst')}
-              title="Burst"
-            >
-              🔫
-            </button>
+            <span className="sidebar-group-label">Capture</span>
+            {captureModes.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
           <div style={styles.sidebarDivider} />
 
           {/* Feature toggles */}
           <div style={styles.sidebarGroup}>
-            <button
-              className={`sidebar-btn ${showFilters ? 'active' : ''}`}
-              onClick={() => setShowFilters(!showFilters)}
-              title="Filters"
-            >
-              🎨
-            </button>
-            <button
-              className="sidebar-btn"
-              onClick={() => setShowGallery(true)}
-              title="Gallery"
-            >
-              🖼️
-            </button>
-            <button
-              className="sidebar-btn"
-              onClick={() => setShowGifMaker(true)}
-              title="GIF Maker"
-            >
-              🎞️
-            </button>
-            <button
-              className="sidebar-btn"
-              onClick={() => setShowTimeLapse(true)}
-              title="Time‑lapse"
-            >
-              ⏱️
-            </button>
-            <button
-              className="sidebar-btn"
-              onClick={() => setShowSettings(true)}
-              title="Settings"
-            >
-              ⚙️
-            </button>
+            <span className="sidebar-group-label">Workspace</span>
+            {workspaceActions.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
           <div style={styles.sidebarDivider} />
 
           {/* AI & tools */}
           <div style={styles.sidebarGroup}>
-            <button
-              className={`sidebar-btn ${faceDetection ? 'active' : ''}`}
-              onClick={() => setFaceDetection(!faceDetection)}
-              title="Face Detection"
-            >
-              👤
-            </button>
-            <button
-              className={`sidebar-btn ${backgroundBlur ? 'active' : ''}`}
-              onClick={() => setBackgroundBlur(!backgroundBlur)}
-              title="Background Blur"
-            >
-              🌫️
-            </button>
-            <button
-              className={`sidebar-btn ${isListening ? 'active' : ''}`}
-              onClick={() => setIsListening(!isListening)}
-              title="Voice"
-            >
-              🎤
-            </button>
-            <button
-              className={`sidebar-btn ${autoEnhance ? 'active' : ''}`}
-              onClick={() => setAutoEnhance(!autoEnhance)}
-              title="Auto‑Enhance"
-            >
-              ✨
-            </button>
-            <button
-              className={`sidebar-btn ${showHistogram ? 'active' : ''}`}
-              onClick={() => setShowHistogram(!showHistogram)}
-              title="Histogram"
-            >
-              📊
-            </button>
-            <button
-              className={`sidebar-btn ${showGrid ? 'active' : ''}`}
-              onClick={() => setShowGrid(!showGrid)}
-              title="Grid"
-            >
-              ⊞
-            </button>
+            <span className="sidebar-group-label">AI &amp; tools</span>
+            {aiActions.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
           <div style={styles.sidebarDivider} />
 
           {/* Stickers & timer/burst options */}
           <div style={styles.sidebarGroup}>
+            <span className="sidebar-group-label">Options</span>
             <select
               value={selectedSticker}
               onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
-              style={styles.sidebarSelect}
+              className="sidebar-select"
               title="Stickers"
             >
               <option value="none">None</option>
@@ -867,7 +950,7 @@ const CameraCapture: React.FC = () => {
               <select
                 value={timerDelay}
                 onChange={(e) => setTimerDelay(Number(e.target.value))}
-                style={styles.sidebarSelect}
+                className="sidebar-select"
               >
                 <option value={3}>3s</option>
                 <option value={5}>5s</option>
@@ -878,11 +961,11 @@ const CameraCapture: React.FC = () => {
               <select
                 value={burstCount}
                 onChange={(e) => setBurstCount(Number(e.target.value))}
-                style={styles.sidebarSelect}
+                className="sidebar-select"
               >
-                <option value={3}>3 shots</option>
-                <option value={5}>5 shots</option>
-                <option value={10}>10 shots</option>
+                <option value={3}>3x</option>
+                <option value={5}>5x</option>
+                <option value={10}>10x</option>
               </select>
             )}
           </div>
@@ -985,10 +1068,20 @@ const CameraCapture: React.FC = () => {
               </motion.button>
             ) : (
               <motion.div style={styles.actionButtonGroup} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <button onClick={retake} style={styles.secondaryBtn}>⟲ Retake</button>
-                <button onClick={downloadImage} style={styles.secondaryBtn}>⬇ Download</button>
-                {navigator.share && <button onClick={shareImage} style={styles.secondaryBtn}>📤 Share</button>}
-                <button onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }} style={styles.secondaryBtn}>✏️ Edit</button>
+                <button onClick={retake} style={styles.secondaryBtn}>
+                  <RotateCcw size={16} strokeWidth={2} /> Retake
+                </button>
+                <button onClick={downloadImage} style={styles.secondaryBtn}>
+                  <Download size={16} strokeWidth={2} /> Download
+                </button>
+                {navigator.share && (
+                  <button onClick={shareImage} style={styles.secondaryBtn}>
+                    <Share2 size={16} strokeWidth={2} /> Share
+                  </button>
+                )}
+                <button onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }} style={styles.secondaryBtn}>
+                  <Pencil size={16} strokeWidth={2} /> Edit
+                </button>
                 <motion.button
                   onClick={uploadPhoto}
                   disabled={loading}
@@ -996,7 +1089,7 @@ const CameraCapture: React.FC = () => {
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                 >
-                  {loading ? 'Syncing...' : '⬆ Upload'}
+                  <UploadCloud size={16} strokeWidth={2} /> {loading ? 'Syncing...' : 'Upload'}
                 </motion.button>
               </motion.div>
             )}
@@ -1009,7 +1102,7 @@ const CameraCapture: React.FC = () => {
           )}
 
           <div style={styles.keyHint}>
-            <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; 🎤: Voice</span>
+            <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; Mic icon: Voice</span>
           </div>
         </div>
       </div>
@@ -1026,7 +1119,9 @@ const CameraCapture: React.FC = () => {
           >
             <div style={styles.sidebarHeader}>
               <span>Filters</span>
-              <button onClick={() => setShowFilters(false)} style={styles.closeSidebar}>✕</button>
+              <button onClick={() => setShowFilters(false)} style={styles.closeSidebar}>
+                <X size={18} strokeWidth={2} />
+              </button>
             </div>
             <div style={styles.filterList}>
               {([
@@ -1187,14 +1282,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '14px 10px',
+    padding: '16px 12px',
     background: 'rgba(20,20,20,0.7)',
     backdropFilter: 'blur(20px)',
     borderRadius: '20px',
     border: '1px solid rgba(255,255,255,0.06)',
-    minWidth: '70px',
-    maxWidth: '70px',
-    gap: '8px',
+    minWidth: '78px',
+    maxWidth: '78px',
+    gap: '10px',
     height: 'fit-content',
     position: 'sticky',
     top: '80px',
@@ -1204,24 +1299,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '6px',
+    gap: '8px',
     width: '100%',
   },
   sidebarDivider: {
     width: '70%',
     height: '1px',
     background: 'rgba(255,255,255,0.08)',
-    margin: '6px 0',
-  },
-  sidebarSelect: {
-    background: 'rgba(255,255,255,0.08)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '8px',
-    padding: '4px 6px',
-    color: 'white',
-    fontSize: '12px',
-    cursor: 'pointer',
-    width: '100%',
+    margin: '2px 0',
   },
   // ---------- CENTER AREA ----------
   centerArea: {
@@ -1336,6 +1421,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '30px',
     cursor: 'pointer',
     transition: 'all 0.2s',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   primaryBtn: {
     padding: '10px 28px',
@@ -1348,6 +1436,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     boxShadow: '0 6px 20px rgba(245, 87, 108, 0.4)',
     transition: 'all 0.2s',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   burstPreviews: {
     display: 'flex',
@@ -1400,8 +1491,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'none',
     border: 'none',
     color: '#aaa',
-    fontSize: '20px',
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '4px',
+    borderRadius: '6px',
   },
   filterList: {
     display: 'flex',
