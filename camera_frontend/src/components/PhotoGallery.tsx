@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Download, Trash2, Search, Grid3X3, List, Calendar, ArrowUpDown,
+  X, Download, Trash2, Search, Grid3X3, List, ArrowUpDown,
   CheckSquare, Square, ImageOff,
 } from 'lucide-react';
 

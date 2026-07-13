@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  X, Camera, Palette, Image as ImageIcon, Upload,
+  X, Camera, Image as ImageIcon, Upload,
   Monitor, Mic, ScanFace, Grid3X3, BarChart3, Sparkles, Focus,
 } from 'lucide-react';
 
