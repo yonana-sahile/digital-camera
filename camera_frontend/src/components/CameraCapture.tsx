@@ -153,14 +153,20 @@ function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
 }
 
 const CameraCapture: React.FC = () => {
-  // --- Mobile Detection State ---
+  // --- Mobile Detection & Viewport State ---
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
     handleResize(); // Check immediately on mount
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
   }, []);
 
   // --- State ---
@@ -203,11 +209,12 @@ const CameraCapture: React.FC = () => {
   // UPDATED API_URL DIRECTLY TO YOUR RENDER INSTANCE
   const API_URL = import.meta.env.VITE_API_URL || 'https://digital-camera-backend.onrender.com/captures/';
 
-  // THE TRICK: Ask for ideal high resolution, let CSS object-fit handle the shape
+  // Dynamic video constraints — request a higher-resolution feed on phones so
+  // the preview still looks sharp when it is stretched to fill more of the screen
   const videoConstraints = {
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
-    facingMode: 'user'
+    width: isMobile ? { ideal: 1080, min: 480 } : { ideal: 1280 },
+    height: isMobile ? { ideal: 1440, min: 640 } : { ideal: 720 },
+    facingMode: 'user',
   };
 
   // --- Notifications ---
@@ -741,7 +748,15 @@ const CameraCapture: React.FC = () => {
 
   // ===================== RENDER =====================
   return (
-    <div style={styles.pageContainer}>
+    <div
+      style={{
+        ...styles.pageContainer,
+        height: isMobile ? '100dvh' : 'auto',
+        minHeight: isMobile ? '100dvh' : '100vh',
+        padding: isMobile ? '8px' : '20px',
+        overflow: isMobile ? 'hidden' : 'visible',
+      }}
+    >
       <style>{`
         * { box-sizing: border-box; }
 
@@ -905,29 +920,21 @@ const CameraCapture: React.FC = () => {
           border-color: rgba(255,255,255,0.2);
         }
 
-        /* --- MOBILE RESPONSIVENESS CSS TRICK --- */
-        .webcam-responsive-container {
-          position: relative;
-          background-color: #1a1a1a;
-          border-radius: 20px;
-          overflow: hidden;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-          border: 1px solid rgba(255,255,255,0.05);
-          width: 100%;
-          aspect-ratio: 16/9;
-        }
-
+        /* --- MOBILE RESPONSIVENESS OVERRIDES --- */
         @media (max-width: 768px) {
-          .webcam-responsive-container {
-            aspect-ratio: auto !important;
-            flex: 1 1 auto !important; /* Grow to fill screen */
-            height: 100% !important;
-            min-height: 55vh;
+          .sidebar-btn-tip {
+            display: none !important; /* Hide tooltips on mobile to save space */
           }
-          .sidebar-btn-tip { display: none !important; }
-          .sidebar-group-label { display: none !important; }
-          .sidebar-btn { width: 48px !important; height: 48px !important; }
-          .sidebar-select { height: 48px !important; }
+          .sidebar-group-label {
+            display: none !important; /* Hide labels for a cleaner bottom bar */
+          }
+          .sidebar-btn {
+            width: 48px !important;
+            height: 48px !important;
+          }
+          .sidebar-select {
+            height: 48px !important;
+          }
         }
       `}</style>
 
@@ -951,8 +958,16 @@ const CameraCapture: React.FC = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <div style={{ ...styles.header, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '12px' : '0' }}>
-        <h1 style={styles.title}>📷 Web Digital Camera</h1>
+      <div
+        style={{
+          ...styles.header,
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '6px' : '0',
+          marginBottom: isMobile ? '8px' : '15px',
+          flexShrink: 0,
+        }}
+      >
+        <h1 style={{ ...styles.title, fontSize: isMobile ? '20px' : '26px' }}>📷 Web Digital Camera</h1>
         <div style={styles.liveIndicator}>
           <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} style={styles.redDot} />
           <span style={styles.liveText}>CAMERA</span>
@@ -960,9 +975,17 @@ const CameraCapture: React.FC = () => {
       </div>
 
       {/* Main container: left sidebar + camera area */}
-      <div style={{ ...styles.mainContainer, flexDirection: isMobile ? 'column-reverse' : 'row', flex: isMobile ? 1 : 'none' }}>
+      <div
+        style={{
+          ...styles.mainContainer,
+          flexDirection: isMobile ? 'column-reverse' : 'row',
+          gap: isMobile ? '10px' : '20px',
+          flex: isMobile ? 1 : undefined,
+          minHeight: isMobile ? 0 : undefined,
+        }}
+      >
 
-        {/* SIDEBAR (Now acts as a bottom scrollable Nav on Mobile) */}
+        {/* SIDEBAR (Now acts as a bottom Nav on Mobile) */}
         <div style={{
           ...styles.sidebar,
           flexDirection: isMobile ? 'row' : 'column',
@@ -971,7 +994,8 @@ const CameraCapture: React.FC = () => {
           position: isMobile ? 'relative' : 'sticky',
           top: isMobile ? '0' : '80px',
           overflowX: isMobile ? 'auto' : 'visible',
-          padding: isMobile ? '12px 10px' : '18px 14px',
+          padding: isMobile ? '10px 8px' : '18px 14px',
+          flexShrink: 0,
           zIndex: 10
         }}>
           {/* Capture modes */}
@@ -1039,10 +1063,25 @@ const CameraCapture: React.FC = () => {
         </div>
 
         {/* CENTER – Camera and main controls */}
-        <div style={{ ...styles.centerArea, width: '100%', flex: isMobile ? 1 : 'none', display: 'flex', flexDirection: 'column' }}>
-          {/* Camera Preview – Using flexible CSS class */}
+        <div
+          style={{
+            ...styles.centerArea,
+            width: '100%',
+            flex: isMobile ? 1 : undefined,
+            minHeight: isMobile ? 0 : undefined,
+            justifyContent: isMobile ? 'center' : 'flex-start',
+          }}
+        >
+          {/* Camera Preview – now fills all remaining space on mobile */}
           <motion.div
-            className="webcam-responsive-container"
+            style={{
+              ...styles.webcamWrapper,
+              aspectRatio: isMobile ? undefined : '16/9',
+              width: '100%',
+              flex: isMobile ? 1 : undefined,
+              minHeight: isMobile ? 0 : undefined,
+              maxHeight: isMobile ? '100%' : 'none',
+            }}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3 }}
@@ -1102,7 +1141,7 @@ const CameraCapture: React.FC = () => {
               <motion.img
                 src={imgSrc}
                 alt="captured"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={styles.videoStream}
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
               />
@@ -1113,9 +1152,7 @@ const CameraCapture: React.FC = () => {
                 screenshotFormat="image/jpeg"
                 videoConstraints={videoConstraints}
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover', // THIS IS THE MAGIC TRICK
+                  ...styles.videoStream,
                   transform: 'scaleX(-1)',
                   filter: filterStyles[activeFilter],
                 }}
@@ -1124,16 +1161,20 @@ const CameraCapture: React.FC = () => {
           </motion.div>
 
           {/* Controls – capture button and post‑capture actions */}
-          <div style={styles.controls}>
+          <div style={{ ...styles.controls, marginTop: isMobile ? '10px' : '20px', height: isMobile ? '64px' : '80px', flexShrink: 0 }}>
             {!imgSrc ? (
               <motion.button
                 onClick={startCaptureSequence}
                 disabled={isCapturing}
-                style={styles.captureBtn}
+                style={{
+                  ...styles.captureBtn,
+                  width: isMobile ? '60px' : '72px',
+                  height: isMobile ? '60px' : '72px',
+                }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <div style={styles.innerCaptureBtn} />
+                <div style={{ ...styles.innerCaptureBtn, width: isMobile ? '46px' : '56px', height: isMobile ? '46px' : '56px' }} />
               </motion.button>
             ) : (
               <motion.div style={styles.actionButtonGroup} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -1164,15 +1205,17 @@ const CameraCapture: React.FC = () => {
             )}
           </div>
 
-          {capturedImages.length > 1 && (
+          {capturedImages.length > 1 && !isMobile && (
             <div style={styles.burstPreviews}>
               {capturedImages.map((img, idx) => <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />)}
             </div>
           )}
 
-          <div style={styles.keyHint}>
-            <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; Mic icon: Voice</span>
-          </div>
+          {!isMobile && (
+            <div style={styles.keyHint}>
+              <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; Mic icon: Voice</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1409,8 +1452,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     width: '100%',
   },
-  // webcamWrapper is mostly handled by CSS class now!
-  webcamWrapper: {},
+  webcamWrapper: {
+    position: 'relative',
+    width: '100%',
+    aspectRatio: '16/9',
+    backgroundColor: '#1a1a1a',
+    borderRadius: '20px',
+    overflow: 'hidden',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+    border: '1px solid rgba(255,255,255,0.05)',
+  },
   cameraOverlay: {
     position: 'absolute',
     top: '20px',
