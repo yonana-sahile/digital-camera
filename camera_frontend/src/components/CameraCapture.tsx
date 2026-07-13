@@ -19,6 +19,7 @@ import {
   BarChart3,
   Grid3x3,
   RotateCcw,
+  RefreshCcw,
   Download,
   Share2,
   Pencil,
@@ -194,6 +195,7 @@ function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
 const CameraCapture: React.FC = () => {
   // --- Mobile Detection & Viewport State ---
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // Switch Camera Fix
 
   useEffect(() => {
     const handleResize = () => {
@@ -248,12 +250,11 @@ const CameraCapture: React.FC = () => {
   // UPDATED API_URL DIRECTLY TO YOUR RENDER INSTANCE
   const API_URL = import.meta.env.VITE_API_URL || 'https://digital-camera-backend.onrender.com/captures/';
 
-  // Dynamic video constraints — request a higher-resolution feed on phones so
-  // the preview still looks sharp when it is stretched to fill more of the screen
+  // Enhanced Video Constraints for Maximum Compatibility
   const videoConstraints = {
-    width: isMobile ? { ideal: 1080, min: 480 } : { ideal: 1280 },
-    height: isMobile ? { ideal: 1440, min: 640 } : { ideal: 720 },
-    facingMode: 'user',
+    width: { ideal: isMobile ? 1080 : 1280 },
+    height: { ideal: isMobile ? 1920 : 720 },
+    facingMode: facingMode, // Allows flipping between front and back camera
   };
 
   // --- Notifications ---
@@ -299,7 +300,11 @@ const CameraCapture: React.FC = () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    flipCanvasHorizontally(canvas);  // mirror fix
+
+    // Only flip the canvas horizontally if we are using the front camera
+    if (facingMode === 'user') {
+        flipCanvasHorizontally(canvas);
+    }
 
     if (backgroundBlur) {
       let faceBox = null;
@@ -399,7 +404,8 @@ const CameraCapture: React.FC = () => {
             faceDetections,
              faceDetection,
              watermarkPosition,
-            watermarkOpacity]);
+            watermarkOpacity,
+            facingMode]);
 
   // --- Gallery save (unchanged) ---
   const savePhotoToGallery = (dataURL: string) => {
@@ -790,10 +796,9 @@ const CameraCapture: React.FC = () => {
     <div
       style={{
         ...styles.pageContainer,
-        height: isMobile ? '100dvh' : 'auto',
-        minHeight: isMobile ? '100dvh' : '100vh',
+        height: '100dvh', // Forces it to exact mobile screen height, preventing bouncing
         padding: isMobile ? '8px' : '20px',
-        overflow: isMobile ? 'hidden' : 'visible',
+        overflow: 'hidden', // Stops UI/UX bouncing issue
       }}
     >
       <style>{`
@@ -962,17 +967,32 @@ const CameraCapture: React.FC = () => {
         /* --- MOBILE RESPONSIVENESS OVERRIDES --- */
         @media (max-width: 768px) {
           .sidebar-btn-tip {
-            display: none !important; /* Hide tooltips on mobile to save space */
+            display: none !important;
           }
           .sidebar-group-label {
-            display: none !important; /* Hide labels for a cleaner bottom bar */
+            display: none !important;
           }
           .sidebar-btn {
-            width: 48px !important;
-            height: 48px !important;
+            width: 44px !important;
+            height: 44px !important;
           }
           .sidebar-select {
-            height: 48px !important;
+            height: 44px !important;
+          }
+          /* Override the layout to perfectly fill the screen on mobile */
+          .mobile-camera-fix {
+             flex: none !important;
+             height: 50vh !important; /* Force strict height so it never collapses to 0 */
+             width: 100% !important;
+             aspect-ratio: auto !important;
+          }
+          .mobile-sidebar-fix {
+             max-height: 25vh !important; /* Gives room for tools below the camera */
+             display: flex !important;
+             flex-wrap: wrap !important;
+             justify-content: center !important;
+             overflow-y: auto !important;
+             gap: 8px !important;
           }
         }
       `}</style>
@@ -1000,126 +1020,46 @@ const CameraCapture: React.FC = () => {
       <div
         style={{
           ...styles.header,
-          flexDirection: isMobile ? 'column' : 'row',
+          flexDirection: isMobile ? 'row' : 'row',
           gap: isMobile ? '6px' : '0',
           marginBottom: isMobile ? '8px' : '15px',
           flexShrink: 0,
         }}
       >
-        <h1 style={{ ...styles.title, fontSize: isMobile ? '20px' : '26px' }}>📷 Web Digital Camera</h1>
+        <h1 style={{ ...styles.title, fontSize: isMobile ? '18px' : '26px' }}>📷 Web Digital Camera</h1>
         <div style={styles.liveIndicator}>
           <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} style={styles.redDot} />
           <span style={styles.liveText}>CAMERA</span>
         </div>
       </div>
 
-      {/* Main container: left sidebar + camera area */}
+      {/* Main container: Camera top, tools bottom on mobile */}
       <div
         style={{
           ...styles.mainContainer,
-          flexDirection: isMobile ? 'column-reverse' : 'row',
+          flexDirection: isMobile ? 'column' : 'row',
           gap: isMobile ? '10px' : '20px',
-          flex: isMobile ? 1 : undefined,
-          minHeight: isMobile ? 0 : undefined,
+          flex: 1,
         }}
       >
-
-        {/* SIDEBAR (Now acts as a bottom Nav on Mobile) */}
-        <div style={{
-          ...styles.sidebar,
-          flexDirection: isMobile ? 'row' : 'column',
-          minWidth: isMobile ? '100%' : '90px',
-          maxWidth: isMobile ? '100%' : '90px',
-          position: isMobile ? 'relative' : 'sticky',
-          top: isMobile ? '0' : '80px',
-          overflowX: isMobile ? 'auto' : 'visible',
-          padding: isMobile ? '10px 8px' : '18px 14px',
-          flexShrink: 0,
-          zIndex: 10
-        }}>
-          {/* Capture modes */}
-          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
-            <span className="sidebar-group-label">Capture</span>
-            {captureModes.map((action) => <IconButton key={action.id} action={action} />)}
-          </div>
-
-          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
-
-          {/* Feature toggles */}
-          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
-            <span className="sidebar-group-label">Workspace</span>
-            {workspaceActions.map((action) => <IconButton key={action.id} action={action} />)}
-          </div>
-
-          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
-
-          {/* AI & tools */}
-          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
-            <span className="sidebar-group-label">AI &amp; tools</span>
-            {aiActions.map((action) => <IconButton key={action.id} action={action} />)}
-          </div>
-
-          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
-
-          {/* Stickers & timer/burst options */}
-          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
-            <span className="sidebar-group-label">Options</span>
-            <select
-              value={selectedSticker}
-              onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
-              className="sidebar-select"
-              title="Stickers"
-            >
-              <option value="none">None</option>
-              <option value="sunglasses">😎</option>
-              <option value="hat">🧢</option>
-              <option value="moustache">🧔</option>
-              <option value="dogears">🐶</option>
-            </select>
-            {mode === 'timer' && (
-              <select
-                value={timerDelay}
-                onChange={(e) => setTimerDelay(Number(e.target.value))}
-                className="sidebar-select"
-              >
-                <option value={3}>3s</option>
-                <option value={5}>5s</option>
-                <option value={10}>10s</option>
-              </select>
-            )}
-            {mode === 'burst' && (
-              <select
-                value={burstCount}
-                onChange={(e) => setBurstCount(Number(e.target.value))}
-                className="sidebar-select"
-              >
-                <option value={3}>3x</option>
-                <option value={5}>5x</option>
-                <option value={10}>10x</option>
-              </select>
-            )}
-          </div>
-        </div>
 
         {/* CENTER – Camera and main controls */}
         <div
           style={{
             ...styles.centerArea,
             width: '100%',
-            flex: isMobile ? 1 : undefined,
-            minHeight: isMobile ? 0 : undefined,
-            justifyContent: isMobile ? 'center' : 'flex-start',
+            flex: isMobile ? 'none' : 1,
           }}
         >
-          {/* Camera Preview – now fills all remaining space on mobile */}
+          {/* Camera Preview */}
           <motion.div
+            className={isMobile ? "mobile-camera-fix" : ""}
             style={{
               ...styles.webcamWrapper,
               aspectRatio: isMobile ? undefined : '16/9',
               width: '100%',
-              flex: isMobile ? 1 : undefined,
-              minHeight: isMobile ? 0 : undefined,
-              maxHeight: isMobile ? '100%' : 'none',
+              flex: isMobile ? 'none' : 1,
+              background: '#000',
             }}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -1147,33 +1087,6 @@ const CameraCapture: React.FC = () => {
                   <span style={styles.countdownNumber}>{countdown}</span>
                 </div>
               )}
-              {showHistogram && !imgSrc && histogramData.length > 0 && (
-                <div style={styles.histogramContainer}>
-                  <canvas
-                    ref={(canvas) => {
-                      if (canvas) {
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                          const width = canvas.width;
-                          const height = canvas.height;
-                          ctx.clearRect(0, 0, width, height);
-                          const max = Math.max(...histogramData);
-                          if (max > 0) {
-                            for (let i = 0; i < histogramData.length; i++) {
-                              const h = (histogramData[i] / max) * height;
-                              ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                              ctx.fillRect(i * (width / 256), height - h, width / 256, h);
-                            }
-                          }
-                        }
-                      }
-                    }}
-                    width={256}
-                    height={64}
-                    style={{ width: '100%', height: '100%' }}
-                  />
-                </div>
-              )}
             </div>
 
             {imgSrc ? (
@@ -1190,33 +1103,61 @@ const CameraCapture: React.FC = () => {
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 videoConstraints={videoConstraints}
+                playsInline={true} // Forces iOS to not play video in full-screen native player
+                onUserMediaError={(err) => showNotification(`Camera blocked: ${err.toString()}`, 'error')}
                 style={{
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover', // THIS IS THE MAGIC TRICK
-                  transform: 'scaleX(-1)',
+                  objectFit: 'cover',
+                  transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)',
                   filter: filterStyles[activeFilter],
                 }}
               />
             )}
           </motion.div>
 
-          {/* Controls – capture button and post‑capture actions */}
-          <div style={{ ...styles.controls, marginTop: isMobile ? '10px' : '20px', height: isMobile ? '64px' : '80px', flexShrink: 0 }}>
+          {/* Controls – capture button and switch camera */}
+          <div style={{ ...styles.controls, height: isMobile ? '70px' : '80px', flexShrink: 0, gap: '15px' }}>
             {!imgSrc ? (
-              <motion.button
-                onClick={startCaptureSequence}
-                disabled={isCapturing}
-                style={{
-                  ...styles.captureBtn,
-                  width: isMobile ? '60px' : '72px',
-                  height: isMobile ? '60px' : '72px',
-                }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <div style={{ ...styles.innerCaptureBtn, width: isMobile ? '46px' : '56px', height: isMobile ? '46px' : '56px' }} />
-              </motion.button>
+              <>
+                {/* Spacer to keep button centered */}
+                {isMobile && <div style={{ width: 44 }} />}
+
+                <motion.button
+                  onClick={startCaptureSequence}
+                  disabled={isCapturing}
+                  style={{
+                    ...styles.captureBtn,
+                    width: isMobile ? '60px' : '72px',
+                    height: isMobile ? '60px' : '72px',
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <div style={{ ...styles.innerCaptureBtn, width: isMobile ? '46px' : '56px', height: isMobile ? '46px' : '56px' }} />
+                </motion.button>
+
+                {/* Flip Camera Button (Fixes high-end phone black screen) */}
+                {isMobile && (
+                  <button
+                    onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
+                    style={{
+                      background: 'rgba(255,255,255,0.1)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '50%',
+                      width: '44px',
+                      height: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <RefreshCcw size={20} />
+                  </button>
+                )}
+              </>
             ) : (
               <motion.div style={styles.actionButtonGroup} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <button onClick={retake} style={styles.secondaryBtn}>
@@ -1225,11 +1166,6 @@ const CameraCapture: React.FC = () => {
                 <button onClick={downloadImage} style={styles.secondaryBtn}>
                   <Download size={16} strokeWidth={2} /> Download
                 </button>
-                {('share' in navigator) && (
-                  <button onClick={shareImage} style={styles.secondaryBtn}>
-                    <Share2 size={16} strokeWidth={2} /> Share
-                  </button>
-                )}
                 <button onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }} style={styles.secondaryBtn}>
                   <Pencil size={16} strokeWidth={2} /> Edit
                 </button>
@@ -1245,19 +1181,61 @@ const CameraCapture: React.FC = () => {
               </motion.div>
             )}
           </div>
+        </div>
 
-          {capturedImages.length > 1 && !isMobile && (
-            <div style={styles.burstPreviews}>
-              {capturedImages.map((img, idx) => <img key={idx} src={img} alt={`burst-${idx}`} style={styles.burstThumb} />)}
-            </div>
+        {/* SIDEBAR (Now acts as a bottom Nav wrapped grid on Mobile) */}
+        <div className={isMobile ? "mobile-sidebar-fix" : ""} style={{
+          ...styles.sidebar,
+          minWidth: isMobile ? '100%' : '90px',
+          maxWidth: isMobile ? '100%' : '90px',
+          padding: isMobile ? '0' : '18px 14px',
+          flexShrink: 0,
+        }}>
+          {captureModes.map((action) => <IconButton key={action.id} action={action} />)}
+          {!isMobile && <div style={styles.sidebarDivider} />}
+
+          {workspaceActions.map((action) => <IconButton key={action.id} action={action} />)}
+          {!isMobile && <div style={styles.sidebarDivider} />}
+
+          {aiActions.map((action) => <IconButton key={action.id} action={action} />)}
+          {!isMobile && <div style={styles.sidebarDivider} />}
+
+          <select
+            value={selectedSticker}
+            onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
+            className="sidebar-select"
+            title="Stickers"
+          >
+            <option value="none">None</option>
+            <option value="sunglasses">😎</option>
+            <option value="hat">🧢</option>
+            <option value="moustache">🧔</option>
+            <option value="dogears">🐶</option>
+          </select>
+          {mode === 'timer' && (
+            <select
+              value={timerDelay}
+              onChange={(e) => setTimerDelay(Number(e.target.value))}
+              className="sidebar-select"
+            >
+              <option value={3}>3s</option>
+              <option value={5}>5s</option>
+              <option value={10}>10s</option>
+            </select>
           )}
-
-          {!isMobile && (
-            <div style={styles.keyHint}>
-              <span>Space: Capture &nbsp;|&nbsp; R: Retake &nbsp;|&nbsp; Mic icon: Voice</span>
-            </div>
+          {mode === 'burst' && (
+            <select
+              value={burstCount}
+              onChange={(e) => setBurstCount(Number(e.target.value))}
+              className="sidebar-select"
+            >
+              <option value={3}>3x</option>
+              <option value={5}>5x</option>
+              <option value={10}>10x</option>
+            </select>
           )}
         </div>
+
       </div>
 
       {/* Filter sidebar (slide‑in) */}
@@ -1384,10 +1362,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    minHeight: '100vh',
     background: 'linear-gradient(145deg, #0b0b0b 0%, #1a1a1a 100%)',
     fontFamily: '"Inter", -apple-system, sans-serif',
-    padding: '20px',
     position: 'relative',
   },
   notification: {
@@ -1411,12 +1387,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     width: '100%',
     maxWidth: '1200px',
-    marginBottom: '15px',
-    padding: '0 10px',
     zIndex: 5,
   },
   title: {
-    fontSize: '26px',
     fontWeight: '600',
     letterSpacing: '1px',
     margin: 0,
@@ -1451,33 +1424,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     width: '100%',
     maxWidth: '1200px',
-    gap: '20px',
     position: 'relative',
   },
   // ---------- LEFT SIDEBAR ----------
   sidebar: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
-    padding: '18px 14px',
     background: 'rgba(20,20,20,0.7)',
     backdropFilter: 'blur(20px)',
     borderRadius: '22px',
     border: '1px solid rgba(255,255,255,0.06)',
-    minWidth: '90px',
-    maxWidth: '90px',
     gap: '10px',
-    height: 'fit-content',
-    position: 'sticky',
-    top: '80px',
     boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
   },
   sidebarGroup: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     gap: '10px',
-    width: '100%',
   },
   sidebarDivider: {
     width: '70%',
@@ -1487,16 +1450,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   // ---------- CENTER AREA ----------
   centerArea: {
-    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    width: '100%',
   },
   webcamWrapper: {
     position: 'relative',
-    width: '100%',
-    aspectRatio: '16/9',
     backgroundColor: '#1a1a1a',
     borderRadius: '20px',
     overflow: 'hidden',
@@ -1517,11 +1476,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '30px',
     height: '30px',
     opacity: 0.8,
-  },
-  videoStream: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
   },
   countdownOverlay: {
     position: 'absolute',
@@ -1553,16 +1507,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     zIndex: 15,
   },
   controls: {
-    marginTop: '20px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    height: '80px',
   },
   captureBtn: {
-    width: '72px',
-    height: '72px',
     borderRadius: '50%',
     backgroundColor: 'transparent',
     border: '4px solid rgba(255,255,255,0.8)',
@@ -1575,8 +1525,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: '0 0 30px rgba(255,255,255,0.1)',
   },
   innerCaptureBtn: {
-    width: '56px',
-    height: '56px',
     borderRadius: '50%',
     background: 'white',
     boxShadow: '0 0 20px rgba(255,255,255,0.3)',
