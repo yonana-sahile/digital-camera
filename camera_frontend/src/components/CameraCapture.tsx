@@ -135,6 +135,45 @@ const filterStyles: Record<FilterType, string> = {
   walden: 'brightness(1.1) contrast(0.9) saturate(0.85) sepia(0.1) hue-rotate(2deg)',
 };
 
+const filterLabels: Record<FilterType, string> = {
+  none: 'Normal',
+  grayscale: 'B&W',
+  sepia: 'Sepia',
+  invert: 'Invert',
+  blur: 'Blur',
+  vintage: 'Vintage',
+  'hue-rotate': 'Hue',
+  warm: 'Warm',
+  cool: 'Cool',
+  vivid: 'Vivid',
+  dramatic: 'Dramatic',
+  vignette: 'Vignette',
+  fade: 'Fade',
+  clarendon: 'Clarendon',
+  lark: 'Lark',
+  gingham: 'Gingham',
+  juno: 'Juno',
+  ludwig: 'Ludwig',
+  reyes: 'Reyes',
+  valencia: 'Valencia',
+  xpro2: 'X-Pro II',
+  willow: 'Willow',
+  'lo-fi': 'Lo‑Fi',
+  earlybird: 'Earlybird',
+  toaster: 'Toaster',
+  '1977': '1977',
+  aden: 'Aden',
+  hudson: 'Hudson',
+  kelvin: 'Kelvin',
+  mayfair: 'Mayfair',
+  nashville: 'Nashville',
+  perpetua: 'Perpetua',
+  rise: 'Rise',
+  sierra: 'Sierra',
+  sutro: 'Sutro',
+  walden: 'Walden',
+};
+
 // Mirror helper (capture fix)
 function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
   const tempCanvas = document.createElement('canvas');
@@ -1141,7 +1180,7 @@ const CameraCapture: React.FC = () => {
               <motion.img
                 src={imgSrc}
                 alt="captured"
-                style={styles.videoStream}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
               />
@@ -1152,7 +1191,9 @@ const CameraCapture: React.FC = () => {
                 screenshotFormat="image/jpeg"
                 videoConstraints={videoConstraints}
                 style={{
-                  ...styles.videoStream,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover', // THIS IS THE MAGIC TRICK
                   transform: 'scaleX(-1)',
                   filter: filterStyles[activeFilter],
                 }}
