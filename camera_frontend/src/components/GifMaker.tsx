@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import GIF from 'gif.js';
 
@@ -23,7 +23,6 @@ const GifMaker: React.FC<GifMakerProps> = ({ images, isOpen, onClose }) => {
   const [loopCount, setLoopCount] = useState<number>(0); // 0 = infinite
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
-  const [previewIndex, setPreviewIndex] = useState<number>(0); // for live preview frame
 
   // Delay presets
   const delayPresets = [
