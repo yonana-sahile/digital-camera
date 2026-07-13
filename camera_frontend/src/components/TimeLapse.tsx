@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Clock, Play, StopCircle, X } from 'lucide-react';
 
 interface TimeLapseProps {
@@ -19,8 +19,8 @@ const TimeLapse: React.FC<TimeLapseProps> = ({ isOpen, onClose, onCapture }) => 
   const intervalRef = useRef(intervalSeconds);
   const totalShotsRef = useRef(totalShots);
   const remainingRef = useRef(remainingShots);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<any>(null);
+  const countdownRef = useRef<any>(null);
 
   useEffect(() => {
     intervalRef.current = intervalSeconds;

@@ -1,4 +1,3 @@
-import React from 'react';
 import CameraCapture from './components/CameraCapture';
 
 function App() {
