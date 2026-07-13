@@ -505,6 +505,7 @@ const CameraCapture: React.FC = () => {
       const response = await fetch(imgSrc);
       const blob = await response.blob();
       const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+      // @ts-ignore
       if (navigator.share) {
         await navigator.share({
           title: 'Check out my photo!',
@@ -622,6 +623,7 @@ const CameraCapture: React.FC = () => {
           if (detections.length > 0) {
             const resized = detections.map((d) => d.forSize(canvas.width, canvas.height));
             faceapi.draw.drawDetections(canvas, resized);
+            // @ts-ignore
             faceapi.draw.drawFaceLandmarks(canvas, resized);
           } else {
             setFaceDetections([]);
@@ -1125,7 +1127,7 @@ const CameraCapture: React.FC = () => {
                 <button onClick={downloadImage} style={styles.secondaryBtn}>
                   <Download size={16} strokeWidth={2} /> Download
                 </button>
-                {navigator.share && (
+                {('share' in navigator) && (
                   <button onClick={shareImage} style={styles.secondaryBtn}>
                     <Share2 size={16} strokeWidth={2} /> Share
                   </button>

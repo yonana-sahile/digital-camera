@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+// @ts-ignore
 import GIF from 'gif.js';
 
 interface GifMakerProps {
