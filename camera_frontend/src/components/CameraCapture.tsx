@@ -201,7 +201,7 @@ const CameraCapture: React.FC = () => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    handleResize();
+    handleResize(); // Check immediately on mount
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
     return () => {
@@ -247,13 +247,13 @@ const CameraCapture: React.FC = () => {
   const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right');
   const watermarkImgRef = useRef<HTMLImageElement | null>(null);
 
+  // UPDATED API_URL DIRECTLY TO YOUR RENDER INSTANCE
   const API_URL = import.meta.env.VITE_API_URL || 'https://digital-camera-backend.onrender.com/captures/';
 
   // --- THE ULTIMATE SAMSUNG & ANDROID FIX ---
-  // We remove ALL width and height constraints.
-  // We let the phone pick its absolute safest default resolution,
-  // and let our CSS `object-fit: cover` make it look beautiful.
   const videoConstraints = {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
     facingMode: facingMode,
   };
 
@@ -795,9 +795,9 @@ const CameraCapture: React.FC = () => {
     <div
       style={{
         ...styles.pageContainer,
-        height: '100vh',
+        height: '100dvh', // Forces it to exact mobile screen height, preventing bouncing
         padding: isMobile ? '8px' : '20px',
-        overflow: 'hidden',
+        overflow: 'hidden', // Stops UI/UX bouncing issue
       }}
     >
       <style>{`
@@ -978,21 +978,20 @@ const CameraCapture: React.FC = () => {
           .sidebar-select {
             height: 44px !important;
           }
-          /* This creates the perfect responsive flex layout */
+          /* Override the layout to perfectly fill the screen on mobile */
           .mobile-camera-fix {
-             flex: 1 !important;
-             min-height: 45vh !important;
+             flex: none !important;
+             height: 50vh !important; /* Force strict height so it never collapses to 0 */
              width: 100% !important;
              aspect-ratio: auto !important;
           }
           .mobile-sidebar-fix {
-             max-height: 30vh !important;
+             max-height: 25vh !important; /* Gives room for tools below the camera */
              display: flex !important;
              flex-wrap: wrap !important;
              justify-content: center !important;
              overflow-y: auto !important;
              gap: 8px !important;
-             padding-bottom: 20px !important;
           }
         }
       `}</style>
@@ -1087,6 +1086,33 @@ const CameraCapture: React.FC = () => {
                   <span style={styles.countdownNumber}>{countdown}</span>
                 </div>
               )}
+              {showHistogram && !imgSrc && histogramData.length > 0 && (
+                <div style={styles.histogramContainer}>
+                  <canvas
+                    ref={(canvas) => {
+                      if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                          const width = canvas.width;
+                          const height = canvas.height;
+                          ctx.clearRect(0, 0, width, height);
+                          const max = Math.max(...histogramData);
+                          if (max > 0) {
+                            for (let i = 0; i < histogramData.length; i++) {
+                              const h = (histogramData[i] / max) * height;
+                              ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                              ctx.fillRect(i * (width / 256), height - h, width / 256, h);
+                            }
+                          }
+                        }
+                      }
+                    }}
+                    width={256}
+                    height={64}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </div>
+              )}
             </div>
 
             {imgSrc ? (
@@ -1103,7 +1129,7 @@ const CameraCapture: React.FC = () => {
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 videoConstraints={videoConstraints}
-                playsInline={true}
+                playsInline={true} // Forces iOS to not play video in full-screen native player
                 onUserMediaError={(err) => showNotification(`Camera blocked: ${err.toString()}`, 'error')}
                 style={{
                   width: '100%',
@@ -1137,7 +1163,7 @@ const CameraCapture: React.FC = () => {
                   <div style={{ ...styles.innerCaptureBtn, width: isMobile ? '46px' : '56px', height: isMobile ? '46px' : '56px' }} />
                 </motion.button>
 
-                {/* Flip Camera Button */}
+                {/* Flip Camera Button (Fixes high-end phone black screen) */}
                 {isMobile && (
                   <button
                     onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
@@ -1166,6 +1192,12 @@ const CameraCapture: React.FC = () => {
                 <button onClick={downloadImage} style={styles.secondaryBtn}>
                   <Download size={16} strokeWidth={2} /> Download
                 </button>
+                {/* Share Button Restored */}
+                {('share' in navigator) && (
+                  <button onClick={shareImage} style={styles.secondaryBtn}>
+                    <Share2 size={16} strokeWidth={2} /> Share
+                  </button>
+                )}
                 <button onClick={() => { setEditorImage(imgSrc); setShowEditor(true); }} style={styles.secondaryBtn}>
                   <Pencil size={16} strokeWidth={2} /> Edit
                 </button>
@@ -1365,7 +1397,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'linear-gradient(145deg, #0b0b0b 0%, #1a1a1a 100%)',
     fontFamily: '"Inter", -apple-system, sans-serif',
     position: 'relative',
-    minHeight: '100vh',
   },
   notification: {
     position: 'fixed',
