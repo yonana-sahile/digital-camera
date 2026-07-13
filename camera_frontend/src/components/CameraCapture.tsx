@@ -203,10 +203,10 @@ const CameraCapture: React.FC = () => {
   // UPDATED API_URL DIRECTLY TO YOUR RENDER INSTANCE
   const API_URL = import.meta.env.VITE_API_URL || 'https://digital-camera-backend.onrender.com/captures/';
 
-  // Dynamic video constraints based on mobile vs desktop
+  // THE TRICK: Ask for ideal high resolution, let CSS object-fit handle the shape
   const videoConstraints = {
-    width: isMobile ? 720 : 1280,
-    height: isMobile ? 1280 : 720,
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
     facingMode: 'user'
   };
 
@@ -905,21 +905,29 @@ const CameraCapture: React.FC = () => {
           border-color: rgba(255,255,255,0.2);
         }
 
-        /* --- MOBILE RESPONSIVENESS OVERRIDES --- */
+        /* --- MOBILE RESPONSIVENESS CSS TRICK --- */
+        .webcam-responsive-container {
+          position: relative;
+          background-color: #1a1a1a;
+          border-radius: 20px;
+          overflow: hidden;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+          border: 1px solid rgba(255,255,255,0.05);
+          width: 100%;
+          aspect-ratio: 16/9;
+        }
+
         @media (max-width: 768px) {
-          .sidebar-btn-tip {
-            display: none !important; /* Hide tooltips on mobile to save space */
+          .webcam-responsive-container {
+            aspect-ratio: auto !important;
+            flex: 1 1 auto !important; /* Grow to fill screen */
+            height: 100% !important;
+            min-height: 55vh;
           }
-          .sidebar-group-label {
-            display: none !important; /* Hide labels for a cleaner bottom bar */
-          }
-          .sidebar-btn {
-            width: 48px !important;
-            height: 48px !important;
-          }
-          .sidebar-select {
-            height: 48px !important;
-          }
+          .sidebar-btn-tip { display: none !important; }
+          .sidebar-group-label { display: none !important; }
+          .sidebar-btn { width: 48px !important; height: 48px !important; }
+          .sidebar-select { height: 48px !important; }
         }
       `}</style>
 
@@ -952,9 +960,9 @@ const CameraCapture: React.FC = () => {
       </div>
 
       {/* Main container: left sidebar + camera area */}
-      <div style={{ ...styles.mainContainer, flexDirection: isMobile ? 'column-reverse' : 'row' }}>
+      <div style={{ ...styles.mainContainer, flexDirection: isMobile ? 'column-reverse' : 'row', flex: isMobile ? 1 : 'none' }}>
 
-        {/* SIDEBAR (Now acts as a bottom Nav on Mobile) */}
+        {/* SIDEBAR (Now acts as a bottom scrollable Nav on Mobile) */}
         <div style={{
           ...styles.sidebar,
           flexDirection: isMobile ? 'row' : 'column',
@@ -1031,10 +1039,10 @@ const CameraCapture: React.FC = () => {
         </div>
 
         {/* CENTER – Camera and main controls */}
-        <div style={{ ...styles.centerArea, width: '100%' }}>
-          {/* Camera Preview – wider */}
+        <div style={{ ...styles.centerArea, width: '100%', flex: isMobile ? 1 : 'none', display: 'flex', flexDirection: 'column' }}>
+          {/* Camera Preview – Using flexible CSS class */}
           <motion.div
-            style={{ ...styles.webcamWrapper, aspectRatio: isMobile ? '3/4' : '16/9', maxHeight: isMobile ? '70vh' : 'none' }}
+            className="webcam-responsive-container"
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3 }}
@@ -1094,7 +1102,7 @@ const CameraCapture: React.FC = () => {
               <motion.img
                 src={imgSrc}
                 alt="captured"
-                style={styles.videoStream}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
               />
@@ -1105,7 +1113,9 @@ const CameraCapture: React.FC = () => {
                 screenshotFormat="image/jpeg"
                 videoConstraints={videoConstraints}
                 style={{
-                  ...styles.videoStream,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover', // THIS IS THE MAGIC TRICK
                   transform: 'scaleX(-1)',
                   filter: filterStyles[activeFilter],
                 }}
@@ -1399,16 +1409,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     width: '100%',
   },
-  webcamWrapper: {
-    position: 'relative',
-    width: '100%',
-    aspectRatio: '16/9',
-    backgroundColor: '#1a1a1a',
-    borderRadius: '20px',
-    overflow: 'hidden',
-    boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
-    border: '1px solid rgba(255,255,255,0.05)',
-  },
+  // webcamWrapper is mostly handled by CSS class now!
+  webcamWrapper: {},
   cameraOverlay: {
     position: 'absolute',
     top: '20px',
