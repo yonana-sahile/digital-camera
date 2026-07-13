@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Download, Trash2, Search, Grid3X3, List, ArrowUpDown,
@@ -442,7 +442,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
-    transition: 'all 0.15s',
+    transition: 'all 0.12s',
   },
   toolBtnDanger: {
     background: 'rgba(255,80,80,0.15)',
@@ -456,7 +456,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
-    transition: 'all 0.15s',
+    transition: 'all 0.12s',
   },
   selectionBar: {
     display: 'flex',
@@ -636,15 +636,5 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'background 0.2s',
   },
 };
-
-// Hover styles via CSS-in-JS pseudo-classes (add this at the bottom)
-const hoverStyles = `
-  .card:hover .card-overlay { opacity: 1; }
-  .card:hover { transform: scale(1.02); }
-  .tool-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
-  .tool-btn-danger:hover { background: rgba(255,80,80,0.25); }
-  .preview-btn:hover { background: rgba(255,255,255,0.2); }
-  .preview-btn-danger:hover { background: rgba(255,80,80,0.35); }
-`;
 
 export default PhotoGallery;

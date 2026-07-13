@@ -20,7 +20,7 @@ interface SettingsProps {
   watermarkOpacity: number;
   onWatermarkOpacityChange: (opacity: number) => void;
   watermarkPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center';
-  onWatermarkPositionChange: (pos: typeof watermarkPosition) => void;
+  onWatermarkPositionChange: (pos: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center') => void;
 
   // ---- Capture quality ----
   captureQuality?: number;                     // 0‑1 JPEG quality

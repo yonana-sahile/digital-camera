@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Undo2, Redo2, X, Eye, Wand2, RotateCw, FlipHorizontal, FlipVertical,
   Crop as CropIcon, SlidersHorizontal, Palette, Sparkles, Type as TypeIcon,
@@ -58,7 +58,6 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }: PhotoEditorPr
   const [aspect, setAspect] = useState<number | null>(null);
   const cropDrag = useRef<any>(null);
   const imgWrapRef = useRef<HTMLDivElement>(null);
-  const imgElRef = useRef<HTMLCanvasElement>(null);
 
   // ---- transform ----
   const [rotation, setRotation] = useState(0);
@@ -333,7 +332,6 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }: PhotoEditorPr
     // Apply a small median or bilateral-like filter (simple average of similar colors)
     const data = imageData.data;
     const copy = new Uint8ClampedArray(data);
-    const areaSize = (radius * 2 + 1);
     for (let dy = radius; dy < imageData.height - radius; dy++) {
       for (let dx = radius; dx < imageData.width - radius; dx++) {
         const idx = (dy * imageData.width + dx) * 4;
@@ -688,7 +686,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }: PhotoEditorPr
                 {activeTab === 'effects' && (
                   <>
                     <Slider label="Vignette" value={vignette} onChange={setVignette} min={0} max={100} />
-                    <Slider label="Film Grain" value={Math.round(grain * 100)} onChange={(v) => setGrain(v / 100)} min={0} max={100} />
+                    <Slider label="Film Grain" value={Math.round(grain * 100)} onChange={(v: number) => setGrain(v / 100)} min={0} max={100} />
                     <Slider label="Tilt-Shift" value={tiltShift} onChange={setTiltShift} min={0} max={100} />
                     <Slider label="Skin Smoothing" value={skinSmoothing} onChange={setSkinSmoothing} min={0} max={100} />
                   </>
@@ -709,7 +707,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }: PhotoEditorPr
                     {healActive && (
                       <>
                         <Slider label="Brush size" value={healBrushSize} onChange={setHealBrushSize} min={4} max={60} />
-                        <Slider label="Strength" value={Math.round(healStrength * 100)} onChange={(v) => setHealStrength(v / 100)} min={10} max={100} />
+                        <Slider label="Strength" value={Math.round(healStrength * 100)} onChange={(v: number) => setHealStrength(v / 100)} min={10} max={100} />
                       </>
                     )}
                     <div className="pe-group-label">Auto corrections</div>
@@ -740,7 +738,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }: PhotoEditorPr
                           </select>
                           <input type="color" className="pe-color" value={layer.color} onChange={(e) => updateTextLayer(layer.id, { color: e.target.value })} />
                         </div>
-                        <Slider label="Size" value={layer.fontSize} min={12} max={200} onChange={(v) => updateTextLayer(layer.id, { fontSize: v })} />
+                        <Slider label="Size" value={layer.fontSize} min={12} max={200} onChange={(v: number) => updateTextLayer(layer.id, { fontSize: v })} />
                       </div>
                     ))}
                   </div>
@@ -827,8 +825,7 @@ function Histogram({ data }: any) {
 function computeHistogram(ctx: any, w: any, h: any) {
   const bins = new Array(32).fill(0);
   const { data } = ctx.getImageData(0, 0, w, h);
-  const stride = 16;
-  for (let i = 0; i < data.length; i += 4 * stride) {
+  for (let i = 0; i < data.length; i += 4 * 16) {
     const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
     bins[Math.min(31, Math.floor((lum / 255) * 32))]++;
   }
@@ -875,7 +872,7 @@ function applyPixelAdjustments(imageData: any, o: any) {
       const maxC = Math.max(r, g, b), minC = Math.min(r, g, b);
       const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
       const vib = o.vibrance / 100; const scale = 1 + vib * (1 - sat);
-      r = gray + (r - gray) * scale; g = gray + (g - gray) * scale; b = gray + (b - gray) * scale;
+      r = gray + (r - gray) * scale; g = gray + (gray - g) * scale; b = gray + (b - gray) * scale;
     }
     data[i] = Math.max(0, Math.min(255, r));
     data[i + 1] = Math.max(0, Math.min(255, g));
@@ -988,7 +985,7 @@ function applyBlemishRemoval(ctx: any, w: any, h: any, intensity: any) {
           len += 3;
         }
       }
-      const getMedian = (arr: any, start: any, stride: any) => {
+      const getMedian = (arr: any, start: any, _stride: any) => {
         const a = [];
         for (let i = start; i < arr.length; i += 3) a.push(arr[i]);
         a.sort((a,b) => a - b);
