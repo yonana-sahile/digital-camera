@@ -195,13 +195,13 @@ function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
 const CameraCapture: React.FC = () => {
   // --- Mobile Detection & Viewport State ---
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // Switch Camera Fix
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    handleResize(); // Check immediately on mount
+    handleResize();
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
     return () => {
@@ -247,14 +247,14 @@ const CameraCapture: React.FC = () => {
   const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right');
   const watermarkImgRef = useRef<HTMLImageElement | null>(null);
 
-  // UPDATED API_URL DIRECTLY TO YOUR RENDER INSTANCE
   const API_URL = import.meta.env.VITE_API_URL || 'https://digital-camera-backend.onrender.com/captures/';
 
-  // Enhanced Video Constraints for Maximum Compatibility
+  // --- THE ULTIMATE SAMSUNG & ANDROID FIX ---
+  // We remove ALL width and height constraints.
+  // We let the phone pick its absolute safest default resolution,
+  // and let our CSS `object-fit: cover` make it look beautiful.
   const videoConstraints = {
-    width: { ideal: isMobile ? 1080 : 1280 },
-    height: { ideal: isMobile ? 1920 : 720 },
-    facingMode: facingMode, // Allows flipping between front and back camera
+    facingMode: facingMode,
   };
 
   // --- Notifications ---
@@ -301,7 +301,6 @@ const CameraCapture: React.FC = () => {
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Only flip the canvas horizontally if we are using the front camera
     if (facingMode === 'user') {
         flipCanvasHorizontally(canvas);
     }
@@ -796,9 +795,9 @@ const CameraCapture: React.FC = () => {
     <div
       style={{
         ...styles.pageContainer,
-        height: '100dvh', // Forces it to exact mobile screen height, preventing bouncing
+        height: '100vh',
         padding: isMobile ? '8px' : '20px',
-        overflow: 'hidden', // Stops UI/UX bouncing issue
+        overflow: 'hidden',
       }}
     >
       <style>{`
@@ -979,20 +978,21 @@ const CameraCapture: React.FC = () => {
           .sidebar-select {
             height: 44px !important;
           }
-          /* Override the layout to perfectly fill the screen on mobile */
+          /* This creates the perfect responsive flex layout */
           .mobile-camera-fix {
-             flex: none !important;
-             height: 50vh !important; /* Force strict height so it never collapses to 0 */
+             flex: 1 !important;
+             min-height: 45vh !important;
              width: 100% !important;
              aspect-ratio: auto !important;
           }
           .mobile-sidebar-fix {
-             max-height: 25vh !important; /* Gives room for tools below the camera */
+             max-height: 30vh !important;
              display: flex !important;
              flex-wrap: wrap !important;
              justify-content: center !important;
              overflow-y: auto !important;
              gap: 8px !important;
+             padding-bottom: 20px !important;
           }
         }
       `}</style>
@@ -1103,7 +1103,7 @@ const CameraCapture: React.FC = () => {
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 videoConstraints={videoConstraints}
-                playsInline={true} // Forces iOS to not play video in full-screen native player
+                playsInline={true}
                 onUserMediaError={(err) => showNotification(`Camera blocked: ${err.toString()}`, 'error')}
                 style={{
                   width: '100%',
@@ -1137,7 +1137,7 @@ const CameraCapture: React.FC = () => {
                   <div style={{ ...styles.innerCaptureBtn, width: isMobile ? '46px' : '56px', height: isMobile ? '46px' : '56px' }} />
                 </motion.button>
 
-                {/* Flip Camera Button (Fixes high-end phone black screen) */}
+                {/* Flip Camera Button */}
                 {isMobile && (
                   <button
                     onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
@@ -1365,6 +1365,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'linear-gradient(145deg, #0b0b0b 0%, #1a1a1a 100%)',
     fontFamily: '"Inter", -apple-system, sans-serif',
     position: 'relative',
+    minHeight: '100vh',
   },
   notification: {
     position: 'fixed',
