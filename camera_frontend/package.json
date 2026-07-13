@@ -10,8 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mediapipe/selfie_segmentation": "^0.1.1675465747",
+    "axios": "^1.18.0",
+    "face-api.js": "^0.20.0",
+    "framer-motion": "^12.40.0",
+    "gif.js": "^0.2.0",
+    "lucide-react": "^1.24.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "react-image-crop": "^11.1.2",
+    "react-use": "^17.6.1",
+    "react-webcam": "^7.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
