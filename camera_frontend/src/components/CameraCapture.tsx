@@ -135,45 +135,6 @@ const filterStyles: Record<FilterType, string> = {
   walden: 'brightness(1.1) contrast(0.9) saturate(0.85) sepia(0.1) hue-rotate(2deg)',
 };
 
-const filterLabels: Record<FilterType, string> = {
-  none: 'Normal',
-  grayscale: 'B&W',
-  sepia: 'Sepia',
-  invert: 'Invert',
-  blur: 'Blur',
-  vintage: 'Vintage',
-  'hue-rotate': 'Hue',
-  warm: 'Warm',
-  cool: 'Cool',
-  vivid: 'Vivid',
-  dramatic: 'Dramatic',
-  vignette: 'Vignette',
-  fade: 'Fade',
-  clarendon: 'Clarendon',
-  lark: 'Lark',
-  gingham: 'Gingham',
-  juno: 'Juno',
-  ludwig: 'Ludwig',
-  reyes: 'Reyes',
-  valencia: 'Valencia',
-  xpro2: 'X-Pro II',
-  willow: 'Willow',
-  'lo-fi': 'Lo‑Fi',
-  earlybird: 'Earlybird',
-  toaster: 'Toaster',
-  '1977': '1977',
-  aden: 'Aden',
-  hudson: 'Hudson',
-  kelvin: 'Kelvin',
-  mayfair: 'Mayfair',
-  nashville: 'Nashville',
-  perpetua: 'Perpetua',
-  rise: 'Rise',
-  sierra: 'Sierra',
-  sutro: 'Sutro',
-  walden: 'Walden',
-};
-
 // Mirror helper (capture fix)
 function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
   const tempCanvas = document.createElement('canvas');
@@ -192,6 +153,16 @@ function flipCanvasHorizontally(canvas: HTMLCanvasElement) {
 }
 
 const CameraCapture: React.FC = () => {
+  // --- Mobile Detection State ---
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    handleResize(); // Check immediately on mount
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // --- State ---
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -231,7 +202,13 @@ const CameraCapture: React.FC = () => {
 
   // UPDATED API_URL DIRECTLY TO YOUR RENDER INSTANCE
   const API_URL = import.meta.env.VITE_API_URL || 'https://digital-camera-backend.onrender.com/captures/';
-  const videoConstraints = { width: 1280, height: 720, facingMode: 'user' };
+
+  // Dynamic video constraints based on mobile vs desktop
+  const videoConstraints = {
+    width: isMobile ? 720 : 1280,
+    height: isMobile ? 1280 : 720,
+    facingMode: 'user'
+  };
 
   // --- Notifications ---
   const showNotification = (text: string, type: 'success' | 'error' | 'info') => {
@@ -921,10 +898,28 @@ const CameraCapture: React.FC = () => {
           text-align: center;
           appearance: none;
           transition: border-color 0.16s ease, background 0.16s ease;
+          flex-shrink: 0;
         }
         .sidebar-select:hover {
           background: rgba(255,255,255,0.1);
           border-color: rgba(255,255,255,0.2);
+        }
+
+        /* --- MOBILE RESPONSIVENESS OVERRIDES --- */
+        @media (max-width: 768px) {
+          .sidebar-btn-tip {
+            display: none !important; /* Hide tooltips on mobile to save space */
+          }
+          .sidebar-group-label {
+            display: none !important; /* Hide labels for a cleaner bottom bar */
+          }
+          .sidebar-btn {
+            width: 48px !important;
+            height: 48px !important;
+          }
+          .sidebar-select {
+            height: 48px !important;
+          }
         }
       `}</style>
 
@@ -948,7 +943,7 @@ const CameraCapture: React.FC = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <div style={styles.header}>
+      <div style={{ ...styles.header, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '12px' : '0' }}>
         <h1 style={styles.title}>📷 Web Digital Camera</h1>
         <div style={styles.liveIndicator}>
           <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} style={styles.redDot} />
@@ -957,35 +952,46 @@ const CameraCapture: React.FC = () => {
       </div>
 
       {/* Main container: left sidebar + camera area */}
-      <div style={styles.mainContainer}>
-        {/* LEFT SIDEBAR */}
-        <div style={styles.sidebar}>
+      <div style={{ ...styles.mainContainer, flexDirection: isMobile ? 'column-reverse' : 'row' }}>
+
+        {/* SIDEBAR (Now acts as a bottom Nav on Mobile) */}
+        <div style={{
+          ...styles.sidebar,
+          flexDirection: isMobile ? 'row' : 'column',
+          minWidth: isMobile ? '100%' : '90px',
+          maxWidth: isMobile ? '100%' : '90px',
+          position: isMobile ? 'relative' : 'sticky',
+          top: isMobile ? '0' : '80px',
+          overflowX: isMobile ? 'auto' : 'visible',
+          padding: isMobile ? '12px 10px' : '18px 14px',
+          zIndex: 10
+        }}>
           {/* Capture modes */}
-          <div style={styles.sidebarGroup}>
+          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
             <span className="sidebar-group-label">Capture</span>
             {captureModes.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
-          <div style={styles.sidebarDivider} />
+          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
 
           {/* Feature toggles */}
-          <div style={styles.sidebarGroup}>
+          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
             <span className="sidebar-group-label">Workspace</span>
             {workspaceActions.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
-          <div style={styles.sidebarDivider} />
+          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
 
           {/* AI & tools */}
-          <div style={styles.sidebarGroup}>
+          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
             <span className="sidebar-group-label">AI &amp; tools</span>
             {aiActions.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
-          <div style={styles.sidebarDivider} />
+          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
 
           {/* Stickers & timer/burst options */}
-          <div style={styles.sidebarGroup}>
+          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
             <span className="sidebar-group-label">Options</span>
             <select
               value={selectedSticker}
@@ -1025,10 +1031,10 @@ const CameraCapture: React.FC = () => {
         </div>
 
         {/* CENTER – Camera and main controls */}
-        <div style={styles.centerArea}>
+        <div style={{ ...styles.centerArea, width: '100%' }}>
           {/* Camera Preview – wider */}
           <motion.div
-            style={styles.webcamWrapper}
+            style={{ ...styles.webcamWrapper, aspectRatio: isMobile ? '3/4' : '16/9', maxHeight: isMobile ? '70vh' : 'none' }}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3 }}
