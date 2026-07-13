@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Undo2, Redo2, X, Eye, Wand2, RotateCw, FlipHorizontal, FlipVertical,
   Crop as CropIcon, SlidersHorizontal, Palette, Sparkles, Type as TypeIcon,
-  Smile, Download, Trash2, Plus, Sun, Moon, Heart, Sticker, Crosshair
+  Smile, Download, Trash2, Plus, Sun, Moon, Heart, Crosshair
 } from 'lucide-react';
 
 // =====================================================================
@@ -41,18 +41,24 @@ const TABS = [
   { id: 'stickers', label: 'Stickers', icon: Smile },
 ];
 
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
 // =====================================================================
-// COMPONENT
+// COMPONENT INTERFACE
 // =====================================================================
-export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
+interface PhotoEditorProps {
+  imageSrc: string;
+  isOpen: boolean;
+  onClose: (editedImage?: string) => void;
+}
+
+export default function PhotoEditor({ imageSrc, isOpen, onClose }: PhotoEditorProps) {
   // ---- crop (percentages of displayed image) ----
   const [cropRect, setCropRect] = useState({ x: 0, y: 0, width: 100, height: 100 });
-  const [aspect, setAspect] = useState(null);
-  const cropDrag = useRef(null);
-  const imgWrapRef = useRef(null);
-  const imgElRef = useRef(null);
+  const [aspect, setAspect] = useState<number | null>(null);
+  const cropDrag = useRef<any>(null);
+  const imgWrapRef = useRef<HTMLDivElement>(null);
+  const imgElRef = useRef<HTMLCanvasElement>(null);
 
   // ---- transform ----
   const [rotation, setRotation] = useState(0);
@@ -87,24 +93,24 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
   const [healBrushSize, setHealBrushSize] = useState(20);
   const [healStrength, setHealStrength] = useState(0.6);
   const healRef = useRef(false);
-  const previewCanvasRef = useRef(null);
-  const editedCanvasRef = useRef(null); // holds the fully rendered image (before splitting)
-  const originalImageRef = useRef(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const editedCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const originalImageRef = useRef<HTMLImageElement | null>(null);
 
   // ---- text & stickers ----
-  const [textLayers, setTextLayers] = useState([]);
-  const [stickers, setStickers] = useState([]);
+  const [textLayers, setTextLayers] = useState<any[]>([]);
+  const [stickers, setStickers] = useState<any[]>([]);
   const [selectedSticker, setSelectedSticker] = useState('😊');
 
   // ---- history ----
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const isUndoRedo = useRef(false);
 
   // ---- ui ----
   const [activeTab, setActiveTab] = useState('adjust');
   const [comparePos, setComparePos] = useState(50);
-  const [histogram, setHistogram] = useState(null);
+  const [histogram, setHistogram] = useState<number[] | null>(null);
   const [dark, setDark] = useState(true);
 
   const currentState = {
@@ -128,15 +134,15 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rotation, flipH, flipV, brightness, contrast, saturation, exposure, highlights, shadows, temperature, tint, sharpness, vibrance, vignette, grain, tiltShift, skinSmoothing, blemishRemoval, teethWhitening, redEyeRemoval, textLayers, stickers]);
 
-  const applyState = (s) => {
+  const applyState = (s: any) => {
     setRotation(s.rotation); setFlipH(s.flipH); setFlipV(s.flipV);
     setBrightness(s.brightness); setContrast(s.contrast); setSaturation(s.saturation);
     setExposure(s.exposure); setHighlights(s.highlights); setShadows(s.shadows);
     setTemperature(s.temperature); setTint(s.tint); setSharpness(s.sharpness); setVibrance(s.vibrance);
     setVignette(s.vignette); setGrain(s.grain); setTiltShift(s.tiltShift); setSkinSmoothing(s.skinSmoothing);
     setBlemishRemoval(s.blemishRemoval); setTeethWhitening(s.teethWhitening); setRedEyeRemoval(s.redEyeRemoval);
-    setTextLayers(s.textLayers.map((l) => ({ ...l })));
-    setStickers(s.stickers.map((st) => ({ ...st })));
+    setTextLayers(s.textLayers.map((l: any) => ({ ...l })));
+    setStickers(s.stickers.map((st: any) => ({ ...st })));
   };
 
   const undo = () => {
@@ -297,7 +303,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
   // ---------------------------------------------------------------
   // INTERACTIVE HEALING BRUSH
   // ---------------------------------------------------------------
-  const getImageCoords = (e) => {
+  const getImageCoords = (e: any) => {
     const canvas = previewCanvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
@@ -311,7 +317,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     return { x: Math.round(x), y: Math.round(y), scaleX, scaleY };
   };
 
-  const applyHealAt = (x, y) => {
+  const applyHealAt = (x: number, y: number) => {
     const editCanvas = editedCanvasRef.current;
     if (!editCanvas) return;
     const ctx = editCanvas.getContext('2d');
@@ -359,7 +365,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     drawPreviewCanvas();
   };
 
-  const handlePointerDown = (e) => {
+  const handlePointerDown = (e: any) => {
     if (!healActive) return;
     e.preventDefault();
     const coords = getImageCoords(e);
@@ -369,7 +375,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     }
   };
 
-  const handlePointerMove = (e) => {
+  const handlePointerMove = (e: any) => {
     if (!healActive || !healRef.current) return;
     const coords = getImageCoords(e);
     if (coords) applyHealAt(coords.x, coords.y);
@@ -404,21 +410,21 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     };
     setTextLayers([...textLayers, layer]);
   };
-  const updateTextLayer = (id, updates) => setTextLayers((p) => p.map((l) => (l.id === id ? { ...l, ...updates } : l)));
-  const removeTextLayer = (id) => setTextLayers((p) => p.filter((l) => l.id !== id));
+  const updateTextLayer = (id: string, updates: any) => setTextLayers((p) => p.map((l) => (l.id === id ? { ...l, ...updates } : l)));
+  const removeTextLayer = (id: string) => setTextLayers((p) => p.filter((l) => l.id !== id));
 
   const addSticker = () => {
     setStickers([...stickers, { id: Date.now().toString(), emoji: selectedSticker, size: 100, x: 200, y: 200 }]);
   };
-  const removeSticker = (id) => setStickers((p) => p.filter((s) => s.id !== id));
+  const removeSticker = (id: string) => setStickers((p) => p.filter((s) => s.id !== id));
 
   // ---------------------------------------------------------------
   // CROP OVERLAY — pointer handling (unchanged)
   // ---------------------------------------------------------------
-  const setAspectRect = (a) => {
+  const setAspectRect = (a: number | null) => {
     setAspect(a);
     if (!a) return;
-    const el = imgElRef.current;
+    const el = imgWrapRef.current;
     if (!el) return;
     const dispW = el.clientWidth, dispH = el.clientHeight;
     const targetRatio = a;
@@ -429,15 +435,16 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     setCropRect({ x: (100 - wPct) / 2, y: (100 - hPct) / 2, width: wPct, height: hPct });
   };
 
-  const onCropPointerDown = (e, mode, corner) => {
+  const onCropPointerDown = (e: any, mode: string, corner?: string) => {
     e.stopPropagation();
     e.preventDefault();
+    if(!imgWrapRef.current) return;
     const bounds = imgWrapRef.current.getBoundingClientRect();
     cropDrag.current = { mode, corner, startX: e.clientX, startY: e.clientY, startRect: { ...cropRect }, bounds };
     window.addEventListener('pointermove', onCropPointerMove);
     window.addEventListener('pointerup', onCropPointerUp);
   };
-  const onCropPointerMove = (e) => {
+  const onCropPointerMove = (e: any) => {
     const d = cropDrag.current;
     if (!d) return;
     const dxPct = ((e.clientX - d.startX) / d.bounds.width) * 100;
@@ -488,6 +495,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
+      if(!ctx) return;
       const x = (cropRect.x / 100) * img.width;
       const y = (cropRect.y / 100) * img.height;
       const w = (cropRect.width / 100) * img.width;
@@ -498,19 +506,19 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
     };
     img.src = editedCanvasRef.current.toDataURL();
   };
-  const handleClose = (save) => (save ? applyCropAndSave() : onClose());
+  const handleClose = (save: boolean) => (save ? applyCropAndSave() : onClose());
 
   // ---------------------------------------------------------------
   // COMPARE SLIDER DRAG
   // ---------------------------------------------------------------
   const compareDrag = useRef(false);
-  const onCompareDown = (e) => {
+  const onCompareDown = (e: any) => {
     e.preventDefault();
     compareDrag.current = true;
     window.addEventListener('pointermove', onCompareMove);
     window.addEventListener('pointerup', onCompareUp);
   };
-  const onCompareMove = (e) => {
+  const onCompareMove = (e: any) => {
     if (!compareDrag.current || !imgWrapRef.current) return;
     const b = imgWrapRef.current.getBoundingClientRect();
     setComparePos(clamp(((e.clientX - b.left) / b.width) * 100, 0, 100));
@@ -664,7 +672,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
                           resetAll();
                           setTimeout(() => {
                             Object.entries(f.values).forEach(([k, v]) => {
-                              const setters = { brightness: setBrightness, contrast: setContrast, saturation: setSaturation, exposure: setExposure, highlights: setHighlights, shadows: setShadows, temperature: setTemperature, tint: setTint, vibrance: setVibrance, sharpness: setSharpness, vignette: setVignette, grain: setGrain };
+                              const setters: any = { brightness: setBrightness, contrast: setContrast, saturation: setSaturation, exposure: setExposure, highlights: setHighlights, shadows: setShadows, temperature: setTemperature, tint: setTint, vibrance: setVibrance, sharpness: setSharpness, vignette: setVignette, grain: setGrain };
                               if (setters[k]) setters[k](v);
                             });
                           }, 0);
@@ -778,7 +786,7 @@ export default function PhotoEditor({ imageSrc, isOpen, onClose }) {
 // =====================================================================
 // SLIDER (unchanged)
 // =====================================================================
-function Slider({ label, value, onChange, min = -100, max = 100 }) {
+function Slider({ label, value, onChange, min = -100, max = 100 }: any) {
   const pct = ((value - min) / (max - min)) * 100;
   const zero = ((0 - min) / (max - min)) * 100;
   const lo = Math.min(pct, zero), hi = Math.max(pct, zero);
@@ -804,19 +812,19 @@ function Slider({ label, value, onChange, min = -100, max = 100 }) {
 // =====================================================================
 // HISTOGRAM (unchanged)
 // =====================================================================
-function Histogram({ data }) {
-  if (!data) return <div className="pe-histogram-empty" />;
+function Histogram({ data }: any) {
+  if (!data || data.length === 0) return <div className="pe-histogram-empty" />;
   const max = Math.max(...data, 1);
   return (
     <div className="pe-histogram">
-      {data.map((v, i) => (
+      {data.map((v: any, i: any) => (
         <div key={i} className="pe-histogram-bar" style={{ height: `${(v / max) * 100}%` }} />
       ))}
     </div>
   );
 }
 
-function computeHistogram(ctx, w, h) {
+function computeHistogram(ctx: any, w: any, h: any) {
   const bins = new Array(32).fill(0);
   const { data } = ctx.getImageData(0, 0, w, h);
   const stride = 16;
@@ -827,7 +835,7 @@ function computeHistogram(ctx, w, h) {
   return bins;
 }
 
-function cropClipPath(r) {
+function cropClipPath(r: any) {
   const x1 = r.x, y1 = r.y, x2 = r.x + r.width, y2 = r.y + r.height;
   return `polygon(0% 0%, 0% 100%, ${x1}% 100%, ${x1}% ${y1}%, ${x2}% ${y1}%, ${x2}% ${y2}%, ${x1}% ${y2}%, ${x1}% 100%, 100% 100%, 100% 0%)`;
 }
@@ -835,7 +843,7 @@ function cropClipPath(r) {
 // =====================================================================
 // PIXEL PROCESSING (unchanged plus beauty functions)
 // =====================================================================
-function applyPixelAdjustments(imageData, o) {
+function applyPixelAdjustments(imageData: any, o: any) {
   const data = imageData.data;
   const exposureFactor = Math.pow(2, o.exposure / 100);
   const tempR = 1 + o.temperature / 200;
@@ -877,7 +885,7 @@ function applyPixelAdjustments(imageData, o) {
   return imageData;
 }
 
-function applySharpen(imageData, amount) {
+function applySharpen(imageData: any, amount: any) {
   const data = imageData.data, width = imageData.width, height = imageData.height;
   const copy = new Uint8ClampedArray(data);
   const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0];
@@ -898,7 +906,7 @@ function applySharpen(imageData, amount) {
   }
 }
 
-function applyVignette(ctx, w, h, intensity) {
+function applyVignette(ctx: any, w: any, h: any, intensity: any) {
   const gradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) / 1.5);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
   gradient.addColorStop(1, `rgba(0,0,0,${intensity / 100})`);
@@ -906,7 +914,7 @@ function applyVignette(ctx, w, h, intensity) {
   ctx.fillRect(0, 0, w, h);
 }
 
-function applyTiltShift(ctx, w, h, intensity) {
+function applyTiltShift(ctx: any, w: any, h: any, intensity: any) {
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
   gradient.addColorStop(0, 'rgba(0,0,0,0)'); gradient.addColorStop(0.4, 'rgba(0,0,0,0)');
   gradient.addColorStop(0.5, `rgba(255,255,255,${intensity / 100})`);
@@ -915,7 +923,7 @@ function applyTiltShift(ctx, w, h, intensity) {
   ctx.fillRect(0, 0, w, h);
 }
 
-function applyGrain(ctx, w, h, amount) {
+function applyGrain(ctx: any, w: any, h: any, amount: any) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
@@ -927,7 +935,7 @@ function applyGrain(ctx, w, h, amount) {
   ctx.putImageData(imageData, 0, 0);
 }
 
-function applySkinSmoothing(ctx, w, h, intensity) {
+function applySkinSmoothing(ctx: any, w: any, h: any, intensity: any) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
   const radius = Math.floor(intensity / 20);
@@ -954,13 +962,13 @@ function applySkinSmoothing(ctx, w, h, intensity) {
   return imageData;
 }
 
-function applyBlemishRemoval(ctx, w, h, intensity) {
+function applyBlemishRemoval(ctx: any, w: any, h: any, intensity: any) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
   const radius = Math.floor(intensity / 20) + 1;
   if (radius < 1) return;
   const copy = new Uint8ClampedArray(data);
-  const isSkinPixel = (r, g, b) => {
+  const isSkinPixel = (r: any, g: any, b: any) => {
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
     return r > 95 && g > 40 && b > 20 && max - min > 15 && Math.abs(r - g) > 15 && r > g && r > b;
   };
@@ -980,7 +988,7 @@ function applyBlemishRemoval(ctx, w, h, intensity) {
           len += 3;
         }
       }
-      const getMedian = (arr, start, stride) => {
+      const getMedian = (arr: any, start: any, stride: any) => {
         const a = [];
         for (let i = start; i < arr.length; i += 3) a.push(arr[i]);
         a.sort((a,b) => a - b);
@@ -994,7 +1002,7 @@ function applyBlemishRemoval(ctx, w, h, intensity) {
   ctx.putImageData(imageData, 0, 0);
 }
 
-function applyTeethWhitening(ctx, w, h, intensity) {
+function applyTeethWhitening(ctx: any, w: any, h: any, intensity: any) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
   const factor = intensity / 100;
@@ -1021,10 +1029,10 @@ function applyTeethWhitening(ctx, w, h, intensity) {
   ctx.putImageData(imageData, 0, 0);
 }
 
-function applyRedEyeRemoval(ctx, w, h) {
+function applyRedEyeRemoval(ctx: any, w: any, h: any) {
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
-  const isSkin = (r,g,b) => {
+  const isSkin = (r: any,g: any,b: any) => {
     const max = Math.max(r,g,b), min = Math.min(r,g,b);
     return r > 95 && g > 40 && b > 20 && max - min > 15 && Math.abs(r - g) > 15 && r > g && r > b;
   };
@@ -1057,7 +1065,7 @@ function applyRedEyeRemoval(ctx, w, h) {
 // =====================================================================
 // TEXT DRAWING (unchanged)
 // =====================================================================
-function drawTextLayer(ctx, w, h, layer) {
+function drawTextLayer(ctx: any, w: any, h: any, layer: any) {
   ctx.save();
   const fontSize = layer.fontSize;
   ctx.font = `bold ${fontSize}px Impact, sans-serif`;
