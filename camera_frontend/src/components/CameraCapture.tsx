@@ -196,13 +196,13 @@ const CameraCapture: React.FC = () => {
   // --- Mobile Detection & Viewport State ---
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
-  const [cameraKey, setCameraKey] = useState<number>(0); // Fixes hardware lock on flip
+  const [cameraKey, setCameraKey] = useState<number>(0);
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    handleResize(); // Check immediately on mount
+    handleResize();
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
     return () => {
@@ -213,7 +213,7 @@ const CameraCapture: React.FC = () => {
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-    setCameraKey(prev => prev + 1); // Forces React-Webcam to completely remount hardware
+    setCameraKey(prev => prev + 1);
   };
 
   // --- State ---
@@ -253,15 +253,12 @@ const CameraCapture: React.FC = () => {
   const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right');
   const watermarkImgRef = useRef<HTMLImageElement | null>(null);
 
-  // UPDATED API_URL DIRECTLY TO YOUR RENDER INSTANCE
   const API_URL = import.meta.env.VITE_API_URL || 'https://digital-camera-backend.onrender.com/captures/';
 
-  // --- THE ULTIMATE SAMSUNG & ANDROID FIX ---
   const videoConstraints = {
     facingMode: facingMode,
   };
 
-  // --- Notifications ---
   const showNotification = (text: string, type: 'success' | 'error' | 'info') => {
     setNotification({ text, type });
     setTimeout(() => setNotification(null), 4000);
@@ -410,7 +407,6 @@ const CameraCapture: React.FC = () => {
             watermarkOpacity,
             facingMode]);
 
-  // --- Gallery save (unchanged) ---
   const savePhotoToGallery = (dataURL: string) => {
     const stored = localStorage.getItem('adwashield_photos');
     let photos: any[] = stored ? JSON.parse(stored) : [];
@@ -423,7 +419,6 @@ const CameraCapture: React.FC = () => {
     localStorage.setItem('adwashield_photos', JSON.stringify(photos));
   };
 
-  // --- Pre‑load watermark (unchanged) ---
   useEffect(() => {
     if (watermarkImage) {
       const img = new Image();
@@ -434,7 +429,6 @@ const CameraCapture: React.FC = () => {
     }
   }, [watermarkImage]);
 
-  // --- Single capture (unchanged) ---
   const performCapture = useCallback((): string | null => {
     const image = captureWithFilter();
     if (image) {
@@ -449,7 +443,6 @@ const CameraCapture: React.FC = () => {
     }
   }, [captureWithFilter]);
 
-  // --- Timer & Burst (unchanged) ---
   const startCaptureSequence = useCallback(async () => {
     if (isCapturing) return;
     setIsCapturing(true);
@@ -492,7 +485,6 @@ const CameraCapture: React.FC = () => {
     }
   }, [mode, timerDelay, burstCount, performCapture, captureWithFilter, isCapturing]);
 
-  // --- Time‑lapse handler (unchanged) ---
   const handleTimeLapseCapture = useCallback(() => {
     const image = captureWithFilter();
     if (image) {
@@ -501,21 +493,42 @@ const CameraCapture: React.FC = () => {
     }
   }, [captureWithFilter, timeLapseImages.length]);
 
-  // --- Upload, Download, Share (unchanged) ---
+  // --- 🔥 UPDATED UPLOAD LOGIC FOR API KEY ---
   const uploadPhoto = async () => {
     if (!imgSrc) return;
+
+    // Check if the user generated a key in the settings menu!
+    const apiKey = localStorage.getItem('adwa_saved_api_key');
+    if (!apiKey) {
+      showNotification('✖ Missing API Key! Generate one in Settings -> API Portal first.', 'error');
+      setShowSettings(true); // Pop open settings for them automatically
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await axios.post<UploadResponse>(API_URL, { image: imgSrc });
+      const response = await axios.post<UploadResponse>(
+        API_URL,
+        { image: imgSrc },
+        {
+          headers: {
+            'Authorization': `Api-Key ${apiKey}` // <-- INJECT THE SECURE KEY HERE
+          }
+        }
+      );
       console.log('Upload Success:', response.data);
-      showNotification('✓ Saved to database!', 'success');
+      showNotification('✓ Saved securely to database!', 'success');
       setTimeout(() => {
         setImgSrc(null);
         setCapturedImages([]);
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload Error:', error);
-      showNotification('✖ Failed to connect.', 'error');
+      if (error.response?.status === 403) {
+        showNotification('✖ Upload blocked! Invalid API Key.', 'error');
+      } else {
+        showNotification('✖ Failed to connect.', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -971,7 +984,6 @@ const CameraCapture: React.FC = () => {
 
         /* --- MOBILE RESPONSIVENESS OVERRIDES --- */
         @media (max-width: 768px) {
-          /* Force texts to show underneath icons on mobile */
           .sidebar-btn-tip {
             position: static !important;
             opacity: 1 !important;
@@ -993,12 +1005,10 @@ const CameraCapture: React.FC = () => {
             display: none !important;
           }
 
-          /* Hide the group headers to keep it a single clean row */
           .sidebar-group-label {
             display: none !important;
           }
 
-          /* Flatten the layout so all buttons flow in a single horizontal scrolling row */
           .sidebar-group-container {
             display: contents !important;
           }
@@ -1028,7 +1038,6 @@ const CameraCapture: React.FC = () => {
              border: none !important;
           }
 
-          /* The bottom scrolling toolbar container */
           .mobile-sidebar-fix {
              max-height: none !important;
              display: flex !important;
@@ -1045,7 +1054,6 @@ const CameraCapture: React.FC = () => {
              -webkit-overflow-scrolling: touch;
           }
 
-          /* Custom sleek horizontal scrollbar for mobile */
           .mobile-sidebar-fix::-webkit-scrollbar {
              height: 4px;
           }
@@ -1102,7 +1110,7 @@ const CameraCapture: React.FC = () => {
         style={{
           ...styles.mainContainer,
           flexDirection: isMobile ? 'column-reverse' : 'row',
-          alignItems: isMobile ? 'stretch' : 'flex-start', // Keeps desktop sidebar anchored properly
+          alignItems: isMobile ? 'stretch' : 'flex-start',
           gap: isMobile ? '0px' : '20px',
           flex: 1,
           width: '100%',
@@ -1116,7 +1124,7 @@ const CameraCapture: React.FC = () => {
           flexDirection: isMobile ? 'row' : 'column',
           minWidth: isMobile ? '100%' : '90px',
           maxWidth: isMobile ? '100%' : '90px',
-          height: isMobile ? 'auto' : 'fit-content', // Forces desktop to wrap icons tightly
+          height: isMobile ? 'auto' : 'fit-content',
           position: isMobile ? 'relative' : 'sticky',
           top: isMobile ? '0' : '80px',
           padding: isMobile ? '0' : '18px 14px',
@@ -1271,7 +1279,7 @@ const CameraCapture: React.FC = () => {
               />
             ) : (
               <Webcam
-                key={cameraKey} // This forces the camera to unmount and remount when switched!
+                key={cameraKey}
                 audio={false}
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
