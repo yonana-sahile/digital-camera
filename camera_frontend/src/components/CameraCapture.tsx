@@ -795,9 +795,11 @@ const CameraCapture: React.FC = () => {
     <div
       style={{
         ...styles.pageContainer,
-        height: '100dvh', // Forces it to exact mobile screen height, preventing bouncing
+        height: isMobile ? '100dvh' : 'auto',
+        minHeight: '100vh',
         padding: isMobile ? '8px' : '20px',
-        overflow: 'hidden', // Stops UI/UX bouncing issue
+        overflowX: 'hidden',
+        overflowY: isMobile ? 'hidden' : 'auto', // Allows desktop to scroll vertically if needed!
       }}
     >
       <style>{`
@@ -978,15 +980,14 @@ const CameraCapture: React.FC = () => {
           .sidebar-select {
             height: 44px !important;
           }
-          /* Override the layout to perfectly fill the screen on mobile */
           .mobile-camera-fix {
              flex: none !important;
-             height: 50vh !important; /* Force strict height so it never collapses to 0 */
+             height: 50vh !important;
              width: 100% !important;
              aspect-ratio: auto !important;
           }
           .mobile-sidebar-fix {
-             max-height: 25vh !important; /* Gives room for tools below the camera */
+             max-height: 25vh !important;
              display: flex !important;
              flex-wrap: wrap !important;
              justify-content: center !important;
@@ -1042,12 +1043,88 @@ const CameraCapture: React.FC = () => {
         }}
       >
 
+        {/* SIDEBAR (Responsive Desktop layout restored!) */}
+        <div className={isMobile ? "mobile-sidebar-fix" : ""} style={{
+          ...styles.sidebar,
+          flexDirection: isMobile ? 'row' : 'column',
+          minWidth: isMobile ? '100%' : '90px',
+          maxWidth: isMobile ? '100%' : '90px',
+          position: isMobile ? 'relative' : 'sticky',
+          top: isMobile ? '0' : '80px',
+          padding: isMobile ? '0' : '18px 14px',
+          flexShrink: 0,
+          zIndex: 10,
+        }}>
+          {/* Capture modes */}
+          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
+            {!isMobile && <span className="sidebar-group-label">Capture</span>}
+            {captureModes.map((action) => <IconButton key={action.id} action={action} />)}
+          </div>
+
+          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
+
+          {/* Feature toggles */}
+          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
+            {!isMobile && <span className="sidebar-group-label">Workspace</span>}
+            {workspaceActions.map((action) => <IconButton key={action.id} action={action} />)}
+          </div>
+
+          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
+
+          {/* AI & tools */}
+          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
+            {!isMobile && <span className="sidebar-group-label">AI & tools</span>}
+            {aiActions.map((action) => <IconButton key={action.id} action={action} />)}
+          </div>
+
+          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
+
+          {/* Stickers & timer/burst options */}
+          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
+            {!isMobile && <span className="sidebar-group-label">Options</span>}
+            <select
+              value={selectedSticker}
+              onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
+              className="sidebar-select"
+              title="Stickers"
+            >
+              <option value="none">None</option>
+              <option value="sunglasses">😎</option>
+              <option value="hat">🧢</option>
+              <option value="moustache">🧔</option>
+              <option value="dogears">🐶</option>
+            </select>
+            {mode === 'timer' && (
+              <select
+                value={timerDelay}
+                onChange={(e) => setTimerDelay(Number(e.target.value))}
+                className="sidebar-select"
+              >
+                <option value={3}>3s</option>
+                <option value={5}>5s</option>
+                <option value={10}>10s</option>
+              </select>
+            )}
+            {mode === 'burst' && (
+              <select
+                value={burstCount}
+                onChange={(e) => setBurstCount(Number(e.target.value))}
+                className="sidebar-select"
+              >
+                <option value={3}>3x</option>
+                <option value={5}>5x</option>
+                <option value={10}>10x</option>
+              </select>
+            )}
+          </div>
+        </div>
+
         {/* CENTER – Camera and main controls */}
         <div
           style={{
             ...styles.centerArea,
             width: '100%',
-            flex: isMobile ? 'none' : 1,
+            flex: 1,
           }}
         >
           {/* Camera Preview */}
@@ -1129,8 +1206,14 @@ const CameraCapture: React.FC = () => {
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 videoConstraints={videoConstraints}
-                playsInline={true} // Forces iOS to not play video in full-screen native player
-                onUserMediaError={(err) => showNotification(`Camera blocked: ${err.toString()}`, 'error')}
+                playsInline={true}
+                onUserMediaError={(err) => {
+                  if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    showNotification('Camera blocked! Please click the lock icon in your browser URL bar and choose "Allow Camera".', 'error');
+                  } else {
+                    showNotification(`Camera error: ${err.message}`, 'error');
+                  }
+                }}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -1163,7 +1246,7 @@ const CameraCapture: React.FC = () => {
                   <div style={{ ...styles.innerCaptureBtn, width: isMobile ? '46px' : '56px', height: isMobile ? '46px' : '56px' }} />
                 </motion.button>
 
-                {/* Flip Camera Button (Fixes high-end phone black screen) */}
+                {/* Flip Camera Button */}
                 {isMobile && (
                   <button
                     onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
@@ -1192,7 +1275,6 @@ const CameraCapture: React.FC = () => {
                 <button onClick={downloadImage} style={styles.secondaryBtn}>
                   <Download size={16} strokeWidth={2} /> Download
                 </button>
-                {/* Share Button Restored */}
                 {('share' in navigator) && (
                   <button onClick={shareImage} style={styles.secondaryBtn}>
                     <Share2 size={16} strokeWidth={2} /> Share
@@ -1214,60 +1296,6 @@ const CameraCapture: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* SIDEBAR (Now acts as a bottom Nav wrapped grid on Mobile) */}
-        <div className={isMobile ? "mobile-sidebar-fix" : ""} style={{
-          ...styles.sidebar,
-          minWidth: isMobile ? '100%' : '90px',
-          maxWidth: isMobile ? '100%' : '90px',
-          padding: isMobile ? '0' : '18px 14px',
-          flexShrink: 0,
-        }}>
-          {captureModes.map((action) => <IconButton key={action.id} action={action} />)}
-          {!isMobile && <div style={styles.sidebarDivider} />}
-
-          {workspaceActions.map((action) => <IconButton key={action.id} action={action} />)}
-          {!isMobile && <div style={styles.sidebarDivider} />}
-
-          {aiActions.map((action) => <IconButton key={action.id} action={action} />)}
-          {!isMobile && <div style={styles.sidebarDivider} />}
-
-          <select
-            value={selectedSticker}
-            onChange={(e) => setSelectedSticker(e.target.value as StickerType)}
-            className="sidebar-select"
-            title="Stickers"
-          >
-            <option value="none">None</option>
-            <option value="sunglasses">😎</option>
-            <option value="hat">🧢</option>
-            <option value="moustache">🧔</option>
-            <option value="dogears">🐶</option>
-          </select>
-          {mode === 'timer' && (
-            <select
-              value={timerDelay}
-              onChange={(e) => setTimerDelay(Number(e.target.value))}
-              className="sidebar-select"
-            >
-              <option value={3}>3s</option>
-              <option value={5}>5s</option>
-              <option value={10}>10s</option>
-            </select>
-          )}
-          {mode === 'burst' && (
-            <select
-              value={burstCount}
-              onChange={(e) => setBurstCount(Number(e.target.value))}
-              className="sidebar-select"
-            >
-              <option value={3}>3x</option>
-              <option value={5}>5x</option>
-              <option value={10}>10x</option>
-            </select>
-          )}
-        </div>
-
       </div>
 
       {/* Filter sidebar (slide‑in) */}
