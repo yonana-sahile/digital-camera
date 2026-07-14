@@ -982,12 +982,12 @@ const CameraCapture: React.FC = () => {
           }
           .mobile-camera-fix {
              flex: none !important;
-             height: 50vh !important;
+             height: 50vh !important; /* Force strict height so it never collapses to 0 */
              width: 100% !important;
              aspect-ratio: auto !important;
           }
           .mobile-sidebar-fix {
-             max-height: 25vh !important;
+             max-height: 25vh !important; /* Gives room for tools below the camera */
              display: flex !important;
              flex-wrap: wrap !important;
              justify-content: center !important;
@@ -1208,10 +1208,13 @@ const CameraCapture: React.FC = () => {
                 videoConstraints={videoConstraints}
                 playsInline={true}
                 onUserMediaError={(err) => {
-                  if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                  const errName = typeof err === 'string' ? err : (err as DOMException).name;
+                  const errMsg = typeof err === 'string' ? err : (err as DOMException).message;
+
+                  if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
                     showNotification('Camera blocked! Please click the lock icon in your browser URL bar and choose "Allow Camera".', 'error');
                   } else {
-                    showNotification(`Camera error: ${err.message}`, 'error');
+                    showNotification(`Camera error: ${errMsg || errName}`, 'error');
                   }
                 }}
                 style={{
@@ -1425,6 +1428,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'linear-gradient(145deg, #0b0b0b 0%, #1a1a1a 100%)',
     fontFamily: '"Inter", -apple-system, sans-serif',
     position: 'relative',
+    minHeight: '100vh',
   },
   notification: {
     position: 'fixed',
