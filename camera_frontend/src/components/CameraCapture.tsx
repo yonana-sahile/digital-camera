@@ -749,26 +749,26 @@ const CameraCapture: React.FC = () => {
 
   // ===================== SIDEBAR ACTION GROUPS =====================
   const captureModes: SidebarAction[] = [
-    { id: 'single', label: 'Single shot', icon: <Camera size={26} strokeWidth={1.8} />, active: mode === 'single', onClick: () => setMode('single'), from: '#fbbf24', to: '#f97316' },
-    { id: 'timer', label: 'Self-timer', icon: <Timer size={26} strokeWidth={1.8} />, active: mode === 'timer', onClick: () => setMode('timer'), from: '#fb7185', to: '#e11d48' },
-    { id: 'burst', label: 'Burst', icon: <SlidersHorizontal size={26} strokeWidth={1.8} />, active: mode === 'burst', onClick: () => setMode('burst'), from: '#f87171', to: '#dc2626' },
+    { id: 'single', label: 'Single shot', icon: <Camera size={24} strokeWidth={1.8} />, active: mode === 'single', onClick: () => setMode('single'), from: '#fbbf24', to: '#f97316' },
+    { id: 'timer', label: 'Self-timer', icon: <Timer size={24} strokeWidth={1.8} />, active: mode === 'timer', onClick: () => setMode('timer'), from: '#fb7185', to: '#e11d48' },
+    { id: 'burst', label: 'Burst', icon: <SlidersHorizontal size={24} strokeWidth={1.8} />, active: mode === 'burst', onClick: () => setMode('burst'), from: '#f87171', to: '#dc2626' },
   ];
 
   const workspaceActions: SidebarAction[] = [
-    { id: 'filters', label: 'Filters', icon: <Palette size={26} strokeWidth={1.8} />, active: showFilters, onClick: () => setShowFilters(!showFilters), from: '#c084fc', to: '#9333ea' },
-    { id: 'gallery', label: 'Gallery', icon: <Images size={26} strokeWidth={1.8} />, onClick: () => setShowGallery(true), from: '#60a5fa', to: '#2563eb' },
-    { id: 'gif', label: 'GIF maker', icon: <Film size={26} strokeWidth={1.8} />, onClick: () => setShowGifMaker(true), from: '#38bdf8', to: '#0284c7' },
-    { id: 'timelapse', label: 'Time-lapse', icon: <Clock size={26} strokeWidth={1.8} />, onClick: () => setShowTimeLapse(true), from: '#2dd4bf', to: '#0d9488' },
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon size={26} strokeWidth={1.8} />, onClick: () => setShowSettings(true), from: '#a1a1aa', to: '#52525b' },
+    { id: 'filters', label: 'Filters', icon: <Palette size={24} strokeWidth={1.8} />, active: showFilters, onClick: () => setShowFilters(!showFilters), from: '#c084fc', to: '#9333ea' },
+    { id: 'gallery', label: 'Gallery', icon: <Images size={24} strokeWidth={1.8} />, onClick: () => setShowGallery(true), from: '#60a5fa', to: '#2563eb' },
+    { id: 'gif', label: 'GIF maker', icon: <Film size={24} strokeWidth={1.8} />, onClick: () => setShowGifMaker(true), from: '#38bdf8', to: '#0284c7' },
+    { id: 'timelapse', label: 'Time-lapse', icon: <Clock size={24} strokeWidth={1.8} />, onClick: () => setShowTimeLapse(true), from: '#2dd4bf', to: '#0d9488' },
+    { id: 'settings', label: 'Settings', icon: <SettingsIcon size={24} strokeWidth={1.8} />, onClick: () => setShowSettings(true), from: '#a1a1aa', to: '#52525b' },
   ];
 
   const aiActions: SidebarAction[] = [
-    { id: 'face', label: 'Face detection', icon: <ScanFace size={26} strokeWidth={1.8} />, active: faceDetection, onClick: () => setFaceDetection(!faceDetection), from: '#f472b6', to: '#db2777' },
-    { id: 'blur', label: 'Background blur', icon: <Focus size={26} strokeWidth={1.8} />, active: backgroundBlur, onClick: () => setBackgroundBlur(!backgroundBlur), from: '#a78bfa', to: '#7c3aed' },
-    { id: 'voice', label: 'Voice control', icon: <Mic size={26} strokeWidth={1.8} />, active: isListening, onClick: () => setIsListening(!isListening), from: '#fb923c', to: '#ea580c' },
-    { id: 'enhance', label: 'Auto-enhance', icon: <Sparkles size={26} strokeWidth={1.8} />, active: autoEnhance, onClick: () => setAutoEnhance(!autoEnhance), from: '#facc15', to: '#ca8a04' },
-    { id: 'histogram', label: 'Histogram', icon: <BarChart3 size={26} strokeWidth={1.8} />, active: showHistogram, onClick: () => setShowHistogram(!showHistogram), from: '#4ade80', to: '#16a34a' },
-    { id: 'grid', label: 'Grid overlay', icon: <Grid3x3 size={26} strokeWidth={1.8} />, active: showGrid, onClick: () => setShowGrid(!showGrid), from: '#22d3ee', to: '#0891b2' },
+    { id: 'face', label: 'Face detect', icon: <ScanFace size={24} strokeWidth={1.8} />, active: faceDetection, onClick: () => setFaceDetection(!faceDetection), from: '#f472b6', to: '#db2777' },
+    { id: 'blur', label: 'Bg blur', icon: <Focus size={24} strokeWidth={1.8} />, active: backgroundBlur, onClick: () => setBackgroundBlur(!backgroundBlur), from: '#a78bfa', to: '#7c3aed' },
+    { id: 'voice', label: 'Voice control', icon: <Mic size={24} strokeWidth={1.8} />, active: isListening, onClick: () => setIsListening(!isListening), from: '#fb923c', to: '#ea580c' },
+    { id: 'enhance', label: 'Auto-enhance', icon: <Sparkles size={24} strokeWidth={1.8} />, active: autoEnhance, onClick: () => setAutoEnhance(!autoEnhance), from: '#facc15', to: '#ca8a04' },
+    { id: 'histogram', label: 'Histogram', icon: <BarChart3 size={24} strokeWidth={1.8} />, active: showHistogram, onClick: () => setShowHistogram(!showHistogram), from: '#4ade80', to: '#16a34a' },
+    { id: 'grid', label: 'Grid overlay', icon: <Grid3x3 size={24} strokeWidth={1.8} />, active: showGrid, onClick: () => setShowGrid(!showGrid), from: '#22d3ee', to: '#0891b2' },
   ];
 
   const IconButton: React.FC<{ action: SidebarAction }> = ({ action }) => (
@@ -795,11 +795,9 @@ const CameraCapture: React.FC = () => {
     <div
       style={{
         ...styles.pageContainer,
-        height: isMobile ? '100dvh' : 'auto',
-        minHeight: '100vh',
-        padding: isMobile ? '8px' : '20px',
-        overflowX: 'hidden',
-        overflowY: isMobile ? 'hidden' : 'auto', // Allows desktop to scroll vertically if needed!
+        height: '100vh',
+        padding: isMobile ? '0px' : '20px', // Remove padding on mobile to maximize space
+        overflow: 'hidden',
       }}
     >
       <style>{`
@@ -910,7 +908,7 @@ const CameraCapture: React.FC = () => {
           outline-offset: 2px;
         }
 
-        /* Tooltip */
+        /* Tooltip (Desktop) */
         .sidebar-btn-tip {
           position: absolute;
           left: calc(100% + 12px);
@@ -967,32 +965,91 @@ const CameraCapture: React.FC = () => {
 
         /* --- MOBILE RESPONSIVENESS OVERRIDES --- */
         @media (max-width: 768px) {
+          /* Force texts to show underneath icons on mobile */
           .sidebar-btn-tip {
+            position: static !important;
+            opacity: 1 !important;
+            display: block !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            font-size: 10px !important;
+            transform: none !important;
+            pointer-events: auto !important;
+            color: rgba(255,255,255,0.6) !important;
+            margin-top: 4px;
+          }
+          .sidebar-btn.active .sidebar-btn-tip {
+            color: #fff !important;
+          }
+          .sidebar-btn-tip::before {
             display: none !important;
           }
+
+          /* Hide the group headers to keep it a single clean row */
           .sidebar-group-label {
             display: none !important;
           }
+
+          /* Flatten the layout so all buttons flow in a single horizontal scrolling row */
+          .sidebar-group-container {
+            display: contents !important;
+          }
+
           .sidebar-btn {
-            width: 44px !important;
-            height: 44px !important;
+            width: 74px !important; /* Made wider to fit text */
+            height: 70px !important; /* Made taller to fit text */
+            flex-direction: column !important;
+            justify-content: center !important;
+            gap: 2px !important;
+            flex-shrink: 0 !important;
           }
+
           .sidebar-select {
-            height: 44px !important;
+            height: 70px !important;
+            width: 80px !important;
+            flex-shrink: 0 !important;
+            border-radius: 14px !important;
           }
+
           .mobile-camera-fix {
-             flex: none !important;
-             height: 50vh !important; /* Force strict height so it never collapses to 0 */
+             flex: 1 !important;
+             min-height: 45vh !important;
              width: 100% !important;
              aspect-ratio: auto !important;
+             border-radius: 0 !important; /* Remove curves on mobile to flush to edges */
+             border: none !important;
           }
+
+          /* The bottom scrolling toolbar container */
           .mobile-sidebar-fix {
-             max-height: 25vh !important; /* Gives room for tools below the camera */
+             max-height: none !important;
              display: flex !important;
-             flex-wrap: wrap !important;
-             justify-content: center !important;
-             overflow-y: auto !important;
-             gap: 8px !important;
+             flex-direction: row !important;
+             flex-wrap: nowrap !important;
+             justify-content: flex-start !important;
+             align-items: center !important;
+             overflow-x: auto !important;
+             overflow-y: hidden !important;
+             gap: 12px !important;
+             padding: 16px 12px 24px 12px !important; /* Extra padding on bottom for safe area */
+             width: 100% !important;
+             background: #111 !important; /* Darker background to separate from camera */
+             -webkit-overflow-scrolling: touch;
+          }
+
+          /* Custom sleek horizontal scrollbar for mobile */
+          .mobile-sidebar-fix::-webkit-scrollbar {
+             height: 4px;
+          }
+          .mobile-sidebar-fix::-webkit-scrollbar-track {
+             background: rgba(255,255,255,0.05);
+             border-radius: 4px;
+          }
+          .mobile-sidebar-fix::-webkit-scrollbar-thumb {
+             background: rgba(255,255,255,0.25);
+             border-radius: 4px;
           }
         }
       `}</style>
@@ -1020,33 +1077,35 @@ const CameraCapture: React.FC = () => {
       <div
         style={{
           ...styles.header,
-          flexDirection: isMobile ? 'row' : 'row',
-          gap: isMobile ? '6px' : '0',
-          marginBottom: isMobile ? '8px' : '15px',
+          flexDirection: 'row',
+          padding: isMobile ? '12px 16px' : '0 10px',
+          marginBottom: isMobile ? '0px' : '15px',
+          background: isMobile ? '#000' : 'transparent',
           flexShrink: 0,
         }}
       >
-        <h1 style={{ ...styles.title, fontSize: isMobile ? '18px' : '26px' }}>📷 Web Digital Camera</h1>
+        <h1 style={{ ...styles.title, fontSize: isMobile ? '20px' : '26px' }}>📷 Digital Camera</h1>
         <div style={styles.liveIndicator}>
           <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} style={styles.redDot} />
           <span style={styles.liveText}>CAMERA</span>
         </div>
       </div>
 
-      {/* Main container: Camera top, tools bottom on mobile */}
+      {/* Main container: column-reverse on mobile forces Sidebar to the bottom! */}
       <div
         style={{
           ...styles.mainContainer,
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? '10px' : '20px',
+          flexDirection: isMobile ? 'column-reverse' : 'row',
+          gap: isMobile ? '0px' : '20px',
           flex: 1,
+          width: '100%',
+          overflow: 'hidden',
         }}
       >
 
-        {/* SIDEBAR (Responsive Desktop layout restored!) */}
+        {/* SIDEBAR (Tools Bar) - Rendered first, but pushed to bottom on mobile via column-reverse */}
         <div className={isMobile ? "mobile-sidebar-fix" : ""} style={{
           ...styles.sidebar,
-          flexDirection: isMobile ? 'row' : 'column',
           minWidth: isMobile ? '100%' : '90px',
           maxWidth: isMobile ? '100%' : '90px',
           position: isMobile ? 'relative' : 'sticky',
@@ -1056,31 +1115,31 @@ const CameraCapture: React.FC = () => {
           zIndex: 10,
         }}>
           {/* Capture modes */}
-          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
+          <div className={isMobile ? "sidebar-group-container" : ""} style={styles.sidebarGroup}>
             {!isMobile && <span className="sidebar-group-label">Capture</span>}
             {captureModes.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
-          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
+          {!isMobile && <div style={styles.sidebarDivider} />}
 
           {/* Feature toggles */}
-          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
+          <div className={isMobile ? "sidebar-group-container" : ""} style={styles.sidebarGroup}>
             {!isMobile && <span className="sidebar-group-label">Workspace</span>}
             {workspaceActions.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
-          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
+          {!isMobile && <div style={styles.sidebarDivider} />}
 
           {/* AI & tools */}
-          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
+          <div className={isMobile ? "sidebar-group-container" : ""} style={styles.sidebarGroup}>
             {!isMobile && <span className="sidebar-group-label">AI & tools</span>}
             {aiActions.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
 
-          <div style={{ ...styles.sidebarDivider, width: isMobile ? '1px' : '70%', height: isMobile ? '40px' : '1px', margin: isMobile ? '0 10px' : '2px 0' }} />
+          {!isMobile && <div style={styles.sidebarDivider} />}
 
           {/* Stickers & timer/burst options */}
-          <div style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
+          <div className={isMobile ? "sidebar-group-container" : ""} style={styles.sidebarGroup}>
             {!isMobile && <span className="sidebar-group-label">Options</span>}
             <select
               value={selectedSticker}
@@ -1125,6 +1184,7 @@ const CameraCapture: React.FC = () => {
             ...styles.centerArea,
             width: '100%',
             flex: 1,
+            overflow: 'hidden',
           }}
         >
           {/* Camera Preview */}
@@ -1134,7 +1194,7 @@ const CameraCapture: React.FC = () => {
               ...styles.webcamWrapper,
               aspectRatio: isMobile ? undefined : '16/9',
               width: '100%',
-              flex: isMobile ? 'none' : 1,
+              flex: 1,
               background: '#000',
             }}
             initial={{ scale: 0.95, opacity: 0 }}
@@ -1229,7 +1289,14 @@ const CameraCapture: React.FC = () => {
           </motion.div>
 
           {/* Controls – capture button and switch camera */}
-          <div style={{ ...styles.controls, height: isMobile ? '70px' : '80px', flexShrink: 0, gap: '15px' }}>
+          <div style={{
+            ...styles.controls,
+            height: isMobile ? '80px' : '80px',
+            flexShrink: 0,
+            gap: '15px',
+            background: isMobile ? '#000' : 'transparent',
+            paddingBottom: isMobile ? '10px' : '0'
+          }}>
             {!imgSrc ? (
               <>
                 {/* Spacer to keep button centered */}
@@ -1240,13 +1307,13 @@ const CameraCapture: React.FC = () => {
                   disabled={isCapturing}
                   style={{
                     ...styles.captureBtn,
-                    width: isMobile ? '60px' : '72px',
-                    height: isMobile ? '60px' : '72px',
+                    width: '72px',
+                    height: '72px',
                   }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <div style={{ ...styles.innerCaptureBtn, width: isMobile ? '46px' : '56px', height: isMobile ? '46px' : '56px' }} />
+                  <div style={{ ...styles.innerCaptureBtn, width: '56px', height: '56px' }} />
                 </motion.button>
 
                 {/* Flip Camera Button */}
@@ -1428,7 +1495,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'linear-gradient(145deg, #0b0b0b 0%, #1a1a1a 100%)',
     fontFamily: '"Inter", -apple-system, sans-serif',
     position: 'relative',
-    minHeight: '100vh',
   },
   notification: {
     position: 'fixed',
@@ -1493,6 +1559,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   // ---------- LEFT SIDEBAR ----------
   sidebar: {
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     background: 'rgba(20,20,20,0.7)',
     backdropFilter: 'blur(20px)',
@@ -1503,8 +1570,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   sidebarGroup: {
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     gap: '10px',
+    width: '100%'
   },
   sidebarDivider: {
     width: '70%',
