@@ -196,6 +196,7 @@ const CameraCapture: React.FC = () => {
   // --- Mobile Detection & Viewport State ---
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [cameraKey, setCameraKey] = useState<number>(0); // Fixes hardware lock on flip
 
   useEffect(() => {
     const handleResize = () => {
@@ -209,6 +210,11 @@ const CameraCapture: React.FC = () => {
       window.removeEventListener('orientationchange', handleResize);
     };
   }, []);
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+    setCameraKey(prev => prev + 1); // Forces React-Webcam to completely remount hardware
+  };
 
   // --- State ---
   const webcamRef = useRef<Webcam>(null);
@@ -252,8 +258,6 @@ const CameraCapture: React.FC = () => {
 
   // --- THE ULTIMATE SAMSUNG & ANDROID FIX ---
   const videoConstraints = {
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
     facingMode: facingMode,
   };
 
@@ -795,9 +799,11 @@ const CameraCapture: React.FC = () => {
     <div
       style={{
         ...styles.pageContainer,
-        height: '100vh',
-        padding: isMobile ? '0px' : '20px', // Remove padding on mobile to maximize space
-        overflow: 'hidden',
+        height: isMobile ? '100dvh' : 'auto',
+        minHeight: '100vh',
+        padding: isMobile ? '0px' : '20px',
+        overflowX: 'hidden',
+        overflowY: isMobile ? 'hidden' : 'auto',
       }}
     >
       <style>{`
@@ -998,8 +1004,8 @@ const CameraCapture: React.FC = () => {
           }
 
           .sidebar-btn {
-            width: 74px !important; /* Made wider to fit text */
-            height: 70px !important; /* Made taller to fit text */
+            width: 74px !important;
+            height: 70px !important;
             flex-direction: column !important;
             justify-content: center !important;
             gap: 2px !important;
@@ -1018,7 +1024,7 @@ const CameraCapture: React.FC = () => {
              min-height: 45vh !important;
              width: 100% !important;
              aspect-ratio: auto !important;
-             border-radius: 0 !important; /* Remove curves on mobile to flush to edges */
+             border-radius: 0 !important;
              border: none !important;
           }
 
@@ -1033,9 +1039,9 @@ const CameraCapture: React.FC = () => {
              overflow-x: auto !important;
              overflow-y: hidden !important;
              gap: 12px !important;
-             padding: 16px 12px 24px 12px !important; /* Extra padding on bottom for safe area */
+             padding: 16px 12px 24px 12px !important;
              width: 100% !important;
-             background: #111 !important; /* Darker background to separate from camera */
+             background: #111 !important;
              -webkit-overflow-scrolling: touch;
           }
 
@@ -1096,6 +1102,7 @@ const CameraCapture: React.FC = () => {
         style={{
           ...styles.mainContainer,
           flexDirection: isMobile ? 'column-reverse' : 'row',
+          alignItems: isMobile ? 'stretch' : 'flex-start', // Keeps desktop sidebar anchored properly
           gap: isMobile ? '0px' : '20px',
           flex: 1,
           width: '100%',
@@ -1103,11 +1110,13 @@ const CameraCapture: React.FC = () => {
         }}
       >
 
-        {/* SIDEBAR (Tools Bar) - Rendered first, but pushed to bottom on mobile via column-reverse */}
+        {/* SIDEBAR (Tools Bar) */}
         <div className={isMobile ? "mobile-sidebar-fix" : ""} style={{
           ...styles.sidebar,
+          flexDirection: isMobile ? 'row' : 'column',
           minWidth: isMobile ? '100%' : '90px',
           maxWidth: isMobile ? '100%' : '90px',
+          height: isMobile ? 'auto' : 'fit-content', // Forces desktop to wrap icons tightly
           position: isMobile ? 'relative' : 'sticky',
           top: isMobile ? '0' : '80px',
           padding: isMobile ? '0' : '18px 14px',
@@ -1115,7 +1124,7 @@ const CameraCapture: React.FC = () => {
           zIndex: 10,
         }}>
           {/* Capture modes */}
-          <div className={isMobile ? "sidebar-group-container" : ""} style={styles.sidebarGroup}>
+          <div className={isMobile ? "sidebar-group-container" : ""} style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
             {!isMobile && <span className="sidebar-group-label">Capture</span>}
             {captureModes.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
@@ -1123,7 +1132,7 @@ const CameraCapture: React.FC = () => {
           {!isMobile && <div style={styles.sidebarDivider} />}
 
           {/* Feature toggles */}
-          <div className={isMobile ? "sidebar-group-container" : ""} style={styles.sidebarGroup}>
+          <div className={isMobile ? "sidebar-group-container" : ""} style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
             {!isMobile && <span className="sidebar-group-label">Workspace</span>}
             {workspaceActions.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
@@ -1131,7 +1140,7 @@ const CameraCapture: React.FC = () => {
           {!isMobile && <div style={styles.sidebarDivider} />}
 
           {/* AI & tools */}
-          <div className={isMobile ? "sidebar-group-container" : ""} style={styles.sidebarGroup}>
+          <div className={isMobile ? "sidebar-group-container" : ""} style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
             {!isMobile && <span className="sidebar-group-label">AI & tools</span>}
             {aiActions.map((action) => <IconButton key={action.id} action={action} />)}
           </div>
@@ -1139,7 +1148,7 @@ const CameraCapture: React.FC = () => {
           {!isMobile && <div style={styles.sidebarDivider} />}
 
           {/* Stickers & timer/burst options */}
-          <div className={isMobile ? "sidebar-group-container" : ""} style={styles.sidebarGroup}>
+          <div className={isMobile ? "sidebar-group-container" : ""} style={{ ...styles.sidebarGroup, flexDirection: isMobile ? 'row' : 'column', width: isMobile ? 'auto' : '100%' }}>
             {!isMobile && <span className="sidebar-group-label">Options</span>}
             <select
               value={selectedSticker}
@@ -1262,6 +1271,7 @@ const CameraCapture: React.FC = () => {
               />
             ) : (
               <Webcam
+                key={cameraKey} // This forces the camera to unmount and remount when switched!
                 audio={false}
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
@@ -1319,7 +1329,7 @@ const CameraCapture: React.FC = () => {
                 {/* Flip Camera Button */}
                 {isMobile && (
                   <button
-                    onClick={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
+                    onClick={toggleCamera}
                     style={{
                       background: 'rgba(255,255,255,0.1)',
                       border: '1px solid rgba(255,255,255,0.2)',
@@ -1559,7 +1569,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   // ---------- LEFT SIDEBAR ----------
   sidebar: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     background: 'rgba(20,20,20,0.7)',
     backdropFilter: 'blur(20px)',
@@ -1570,10 +1579,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   sidebarGroup: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     gap: '10px',
-    width: '100%'
   },
   sidebarDivider: {
     width: '70%',
