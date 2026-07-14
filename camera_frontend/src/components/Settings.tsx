@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
 import {
-  X, Camera, Image as ImageIcon, Upload,
+  X, Camera, Image as ImageIcon, Upload, Key, Copy, Check,
   Monitor, Mic, ScanFace, Grid3X3, BarChart3, Sparkles, Focus,
 } from 'lucide-react';
 
@@ -53,12 +54,13 @@ interface SettingsProps {
 // --------------------------------------------------------------------
 // CONSTANTS
 // --------------------------------------------------------------------
-type TabId = 'general' | 'capture' | 'watermark' | 'advanced';
+type TabId = 'general' | 'capture' | 'watermark' | 'developer' | 'advanced';
 
 const TABS: { id: TabId; label: string; icon: React.FC<any> }[] = [
   { id: 'general', label: 'General', icon: Monitor },
   { id: 'capture', label: 'Capture', icon: Camera },
   { id: 'watermark', label: 'Watermark', icon: ImageIcon },
+  { id: 'developer', label: 'API Portal', icon: Key }, // <-- NEW PORTAL TAB
   { id: 'advanced', label: 'Advanced', icon: Upload },
 ];
 
@@ -103,7 +105,7 @@ const Settings: React.FC<SettingsProps> = ({
   onVoiceDefaultChange,
   theme = 'dark',
   onThemeChange,
-  apiUrl = 'http://localhost:8000/api/captures/',
+  apiUrl = 'https://digital-camera-backend.onrender.com/',
   onApiUrlChange,
 }) => {
   // ---- Local state ----
@@ -132,6 +134,12 @@ const Settings: React.FC<SettingsProps> = ({
   const [tempTheme, setTempTheme] = useState(theme);
   const [tempApiUrl, setTempApiUrl] = useState(apiUrl);
 
+  // API Key Generation State
+  const [developerName, setDeveloperName] = useState('');
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
   // ---- Load defaults when opened ----
   useEffect(() => {
     if (isOpen) {
@@ -150,6 +158,7 @@ const Settings: React.FC<SettingsProps> = ({
       setTempVoice(voiceDefault);
       setTempTheme(theme);
       setTempApiUrl(apiUrl);
+      setGeneratedKey(null);
       setActiveTab('general');
     }
   }, [isOpen, watermarkText, watermarkImage, watermarkOpacity, watermarkPosition,
@@ -169,6 +178,32 @@ const Settings: React.FC<SettingsProps> = ({
   const handlePresetResolution = (w: number, h: number) => {
     setTempWidth(w);
     setTempHeight(h);
+  };
+
+  // NEW: Calls your Django backend view to build a secure token
+  const handleGenerateApiKey = async () => {
+    if (!developerName.trim()) return;
+    setGenerating(true);
+    try {
+      const cleanBaseUrl = tempApiUrl.endsWith('/') ? tempApiUrl : `${tempApiUrl}/`;
+      const response = await axios.post(`${cleanBaseUrl}generate-key/`, {
+        name: developerName
+      });
+      setGeneratedKey(response.data.raw_api_key);
+      // Automatically store this in localStorage so your camera can use it immediately!
+      localStorage.setItem('adwa_saved_api_key', response.data.raw_api_key);
+    } catch (err) {
+      alert('Failed to connect to backend server. Make sure your API Endpoint URL is correct.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleCopyKey = () => {
+    if (!generatedKey) return;
+    navigator.clipboard.writeText(generatedKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleSave = () => {
@@ -208,7 +243,9 @@ const Settings: React.FC<SettingsProps> = ({
     setTempBlur(false);
     setTempVoice(false);
     setTempTheme('dark');
-    setTempApiUrl('http://localhost:8000/api/captures/');
+    setTempApiUrl('https://digital-camera-backend.onrender.com/');
+    setGeneratedKey(null);
+    localStorage.removeItem('adwa_saved_api_key');
   };
 
   if (!isOpen) return null;
@@ -256,17 +293,19 @@ const Settings: React.FC<SettingsProps> = ({
         <div style={styles.content}>
           {activeTab === 'general' && (
             <motion.div style={styles.section} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Theme Preference</label>
-                <select
-                  value={tempTheme}
-                  onChange={(e) => setTempTheme(e.target.value as 'dark' | 'light')}
-                  style={styles.select}
-                >
-                  <option value="dark">Dark Mode</option>
-                  <option value="light">Light Mode</option>
-                </select>
-                <p style={styles.hint}>Theme affects the editor and UI panels across the application.</p>
+              <div style={styles.card}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Theme Preference</label>
+                  <select
+                    value={tempTheme}
+                    onChange={(e) => setTempTheme(e.target.value as 'dark' | 'light')}
+                    style={styles.select}
+                  >
+                    <option value="dark">Dark Mode</option>
+                    <option value="light">Light Mode</option>
+                  </select>
+                  <p style={styles.hint}>Theme affects the editor and UI panels across the application.</p>
+                </div>
               </div>
             </motion.div>
           )}
@@ -408,6 +447,50 @@ const Settings: React.FC<SettingsProps> = ({
             </motion.div>
           )}
 
+          {/* 🔥 NEW API PORTAL TAB VIEW */}
+          {activeTab === 'developer' && (
+            <motion.div style={styles.section} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <div style={styles.card}>
+                <h3 style={styles.sectionTitle}>Generate Application Credentials</h3>
+                <p style={styles.hint}>Create a private API authorization string to enable third-party components to upload directly to your server sandbox.</p>
+
+                {!generatedKey ? (
+                  <div style={{ ...styles.inputGroup, marginTop: '12px' }}>
+                    <label style={styles.label}>Developer ID / Name</label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input
+                        type="text"
+                        value={developerName}
+                        onChange={(e) => setDeveloperName(e.target.value)}
+                        placeholder="e.g. Mobile Camera Client"
+                        style={{ ...styles.input, flex: 1 }}
+                      />
+                      <button
+                        onClick={handleGenerateApiKey}
+                        disabled={generating || !developerName.trim()}
+                        style={{ ...styles.saveBtn, borderRadius: '10px', padding: '0 16px', height: '46px' }}
+                      >
+                        {generating ? 'Issuing...' : 'Create Key'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ ...styles.inputGroup, marginTop: '12px' }}>
+                    <label style={{ ...styles.label, color: '#ff6b6b', fontWeight: 'bold' }}>⚠️ Copy token immediately!</label>
+                    <p style={styles.hint}>For security purposes, this cleartext authorization credential can only be displayed once.</p>
+                    <div style={styles.keyDisplayRow}>
+                      <code style={styles.keyCode}>{generatedKey}</code>
+                      <button onClick={handleCopyKey} style={styles.copyBtn}>
+                        {copied ? <Check size={16} color="#4ade80" /> : <Copy size={16} />}
+                        <span>{copied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'advanced' && (
             <motion.div style={styles.section} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div style={styles.card}>
@@ -451,7 +534,7 @@ const Toggle: React.FC<{ label: string; value: boolean; onChange: (v: boolean) =
 }) => (
   <div style={styles.toggleRow}>
     <div style={styles.toggleLabel}>
-      <Icon size={16} strokeWidth={2} style={{ color: value ? '#f5576c' : '#888' }} />
+      <Icon size={16} strokeWidth={2} style={{ color: value ? '#f5576c' : '#888', marginRight: 8 }} />
       <span style={{ color: value ? '#fff' : '#aaa' }}>{label}</span>
     </div>
     <button
@@ -630,6 +713,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 600, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,87,108,0.3)',
     transition: 'all 0.2s',
   },
+  keyDisplayRow: {
+    display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '10px', padding: '8px 12px', alignItems: 'center', marginTop: '6px'
+  },
+  keyCode: {
+    flex: 1, color: '#4ade80', fontSize: '13px', overflowX: 'auto', whiteSpace: 'nowrap', fontFamily: 'monospace'
+  },
+  copyBtn: {
+    display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.06)',
+    border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: 12, fontWeight: 500
+  }
 };
 
 export default Settings;
