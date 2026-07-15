@@ -253,7 +253,11 @@ const CameraCapture: React.FC = () => {
   const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right');
   const watermarkImgRef = useRef<HTMLImageElement | null>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'https://digital-camera-backend.onrender.com/captures/';
+  const [apiUrl, setApiUrl] = useState<string>(() => {
+  return localStorage.getItem('camera_custom_api_url') ||
+         import.meta.env.VITE_API_URL ||
+         'https://digital-camera-backend.onrender.com/captures/';
+});
 
   const videoConstraints = {
     facingMode: facingMode,
@@ -508,7 +512,7 @@ const CameraCapture: React.FC = () => {
     setLoading(true);
     try {
       const response = await axios.post<UploadResponse>(
-        API_URL,
+        apiUrl,
         { image: imgSrc },
         {
           headers: {
@@ -1499,6 +1503,11 @@ const CameraCapture: React.FC = () => {
         onWatermarkOpacityChange={setWatermarkOpacity}
         watermarkPosition={watermarkPosition}
         onWatermarkPositionChange={setWatermarkPosition}
+        apiUrl={apiUrl}
+        onApiUrlChange={(newUrl) => {
+          setApiUrl(newUrl);
+          localStorage.setItem('camera_custom_api_url', newUrl);
+        }}
       />
     </div>
   );
