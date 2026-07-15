@@ -253,10 +253,10 @@ const CameraCapture: React.FC = () => {
   const [watermarkPosition, setWatermarkPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center'>('bottom-right');
   const watermarkImgRef = useRef<HTMLImageElement | null>(null);
 
-  const [apiUrl, setApiUrl] = useState<string>(() => {
+ const [apiUrl, setApiUrl] = useState<string>(() => {
   return localStorage.getItem('camera_custom_api_url') ||
          import.meta.env.VITE_API_URL ||
-         'https://digital-camera-backend.onrender.com/captures/';
+         'https://digital-camera-backend.onrender.com/api/captures/';
 });
 
   const videoConstraints = {
