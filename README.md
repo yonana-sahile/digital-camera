@@ -324,3 +324,4 @@ Distributed under the **MIT License**. See [`LICENSE`](./LICENSE) for full detai
 Made with ❤️ using React, TypeScript, and Django
 
 </div>
+
