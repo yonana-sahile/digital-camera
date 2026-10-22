@@ -1,5 +1,6 @@
 <div align="center">
 
+
 # 📷 Digital Camera Web App & Secure API
 
 ### A production-grade, full-stack browser camera platform with real-time AI vision, voice control, and a hardened REST API.
